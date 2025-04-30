@@ -359,8 +359,11 @@ export function InternetExplorerAppComponent({
     return `/api/iframe-check?url=${encodeURIComponent(formattedUrl)}&year=${year}&month=${month}`;
   };
 
+  // Ref to keep the most recent navigation token in sync without waiting for a render
+  const navTokenRef = useRef<number>(0);
+
   const handleIframeLoad = async () => {
-    if (iframeRef.current && iframeRef.current.dataset.navToken === token.toString()) {
+    if (iframeRef.current && iframeRef.current.dataset.navToken === navTokenRef.current.toString()) {
       const iframeSrc = iframeRef.current.src;
       if (iframeSrc.includes('/api/iframe-check') && iframeRef.current.contentDocument) {
         try {
@@ -409,7 +412,7 @@ export function InternetExplorerAppComponent({
       clearErrorDetails();
 
       setTimeout(() => {
-        if (iframeRef.current && iframeRef.current.dataset.navToken === token.toString()) {
+        if (iframeRef.current && iframeRef.current.dataset.navToken === navTokenRef.current.toString()) {
           let loadedTitle: string | null = null;
           const currentUrlForFallback = url;
           const fallbackTitle = currentUrlForFallback ? new URL(currentUrlForFallback.startsWith("http") ? currentUrlForFallback : `https://${currentUrlForFallback}`).hostname : "Internet Explorer";
@@ -458,9 +461,9 @@ export function InternetExplorerAppComponent({
   };
 
   const handleIframeError = () => {
-    if (iframeRef.current && iframeRef.current.dataset.navToken === token.toString()) {
+    if (iframeRef.current && iframeRef.current.dataset.navToken === navTokenRef.current.toString()) {
       setTimeout(() => {
-        if (iframeRef.current && iframeRef.current.dataset.navToken === token.toString()) {
+        if (iframeRef.current && iframeRef.current.dataset.navToken === navTokenRef.current.toString()) {
           try {
             const targetUrlForError = finalUrl || url;
             track(IE_ANALYTICS.NAVIGATION_ERROR, {
@@ -520,6 +523,10 @@ export function InternetExplorerAppComponent({
         ? "future"
         : "past";
     const newToken = Date.now();
+
+    // Store the latest token immediately so that asynchronous iframe load/error
+    // handlers fired before the next React render can still validate correctly.
+    navTokenRef.current = newToken;
 
     track(IE_ANALYTICS.NAVIGATION_START, {
       url: targetUrlParam,
