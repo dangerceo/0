@@ -237,6 +237,13 @@ export function ChatMessages({
       console.log('[Scroll] User scrolled to bottom, locking auto-scroll');
       setScrollLockedToBottom(true);
       wasAtBottom.current = true;
+    } else {
+      // User scrolled away from bottom, unlock auto-scroll to respect manual position
+      if (scrollLockedToBottom) {
+        console.log('[Scroll] User scrolled away from bottom, unlocking auto-scroll');
+      }
+      setScrollLockedToBottom(false);
+      wasAtBottom.current = false;
     }
   };
 
