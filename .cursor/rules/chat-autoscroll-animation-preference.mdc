@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+chat-autoscroll-animation-preference: Prefer chat auto-scroll to be immediate (no animation) on initial load, but animated for subsequent new messages.

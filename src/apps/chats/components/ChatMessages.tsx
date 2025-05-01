@@ -1,5 +1,12 @@
 import { Message as VercelMessage } from "ai";
-import { Loader2, AlertCircle, MessageSquare, Copy, Check, ChevronDown } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  MessageSquare,
+  Copy,
+  Check,
+  ChevronDown,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,7 +16,26 @@ import HtmlPreview, {
   isHtmlCodeBlock,
   extractHtmlContent,
 } from "@/components/shared/HtmlPreview";
-import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+
+// --- Helper functions moved/redefined here for cleaning ---
+const cleanAppControlMarkup = (message: string): string => {
+  // Remove app control tags entirely before rendering
+  return message
+    .replace(/<app:launch[^>]*\/>/g, "")
+    .replace(/<app:close[^>]*\/>/g, "")
+    .trim();
+};
+
+const cleanTextEditMarkup = (message: string): string => {
+  // Remove textedit tags entirely before rendering
+  return message
+    .replace(/<textedit:insert[^>]*>.*?<\/textedit:insert>/gs, "")
+    .replace(/<textedit:replace[^>]*>.*?<\/textedit:replace>/gs, "")
+    .replace(/<textedit:delete[^>]*\/>/gs, "")
+    .trim();
+};
+// --- End Helper Functions ---
 
 // --- Color Hashing for Usernames ---
 const userColors = [
@@ -96,9 +122,10 @@ const isEmojiOnly = (text: string): boolean => {
 
 // Define an extended message type that includes username
 // Extend VercelMessage and add username and the 'human' role
-interface ChatMessage extends Omit<VercelMessage, 'role'> { // Omit the original role to redefine it
+interface ChatMessage extends Omit<VercelMessage, "role"> {
+  // Omit the original role to redefine it
   username?: string; // Add username, make it optional for safety
-  role: VercelMessage['role'] | 'human'; // Allow original roles plus 'human'
+  role: VercelMessage["role"] | "human"; // Allow original roles plus 'human'
   isPending?: boolean; // Add isPending flag
 }
 
@@ -109,6 +136,7 @@ interface ChatMessagesProps {
   onRetry?: () => void;
   onClear?: () => void;
   isRoomView: boolean; // Add prop to indicate if this is a room view
+  isInitialLoad?: boolean; // Add new prop to track initial load or channel switch
 }
 
 // Component to render the scroll-to-bottom button using the library's context
@@ -141,14 +169,16 @@ export function ChatMessages({
   onRetry,
   onClear,
   isRoomView,
+  isInitialLoad = false, // Default to false for existing behavior
 }: ChatMessagesProps) {
   const { playNote } = useChatSynth();
   const { playElevatorMusic, stopElevatorMusic, playDingSound } =
     useTerminalSounds();
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
-  const [isInteractingWithPreview, setIsInteractingWithPreview] = useState(false);
-  
+  const [isInteractingWithPreview, setIsInteractingWithPreview] =
+    useState(false);
+
   // Refs needed for message processing/animation, but not scrolling
   const previousMessagesRef = useRef<ChatMessage[]>([]);
   const initialMessageIdsRef = useRef<Set<string>>(new Set());
@@ -156,15 +186,26 @@ export function ChatMessages({
 
   // --- New Effect for Sound/Vibration ---
   useEffect(() => {
-    if (previousMessagesRef.current.length > 0 && messages.length > previousMessagesRef.current.length) {
-      const previousIds = new Set(previousMessagesRef.current.map(m => m.id || `${m.role}-${m.content.substring(0, 10)}`));
-      const newMessages = messages.filter(
-        currentMsg => !previousIds.has(currentMsg.id || `${currentMsg.role}-${currentMsg.content.substring(0, 10)}`)
+    if (
+      previousMessagesRef.current.length > 0 &&
+      messages.length > previousMessagesRef.current.length
+    ) {
+      const previousIds = new Set(
+        previousMessagesRef.current.map(
+          (m) => m.id || `${m.role}-${m.content.substring(0, 10)}`
+        )
       );
-      const newHumanMessage = newMessages.find(msg => msg.role === 'human');
+      const newMessages = messages.filter(
+        (currentMsg) =>
+          !previousIds.has(
+            currentMsg.id ||
+              `${currentMsg.role}-${currentMsg.content.substring(0, 10)}`
+          )
+      );
+      const newHumanMessage = newMessages.find((msg) => msg.role === "human");
       if (newHumanMessage) {
         playNote();
-        if ('vibrate' in navigator) {
+        if ("vibrate" in navigator) {
           navigator.vibrate(100);
         }
       }
@@ -179,8 +220,11 @@ export function ChatMessages({
     if (!hasInitializedRef.current && messages.length > 0) {
       hasInitializedRef.current = true;
       previousMessagesRef.current = messages; // Initialize previous messages
-      initialMessageIdsRef.current = new Set(messages.map(m => m.id || `${m.role}-${m.content.substring(0, 10)}`));
-    } else if (messages.length === 0) { // Also reset if starting empty
+      initialMessageIdsRef.current = new Set(
+        messages.map((m) => m.id || `${m.role}-${m.content.substring(0, 10)}`)
+      );
+    } else if (messages.length === 0) {
+      // Also reset if starting empty
       hasInitializedRef.current = false; // Allow re-initialization if messages appear later
     }
   }, [messages]); // Re-run if messages array itself changes (e.g., clearing chat)
@@ -217,9 +261,9 @@ export function ChatMessages({
     // Use StickToBottom component as the main container
     <StickToBottom
       className="flex-1 relative flex flex-col overflow-hidden bg-white border-2 border-gray-800 rounded mb-2 w-full"
-      // Optional props for smooth scrolling behavior
-      resize="smooth"
-      initial="smooth"
+      // Use instant behavior for initial load/channel switch, smooth otherwise
+      resize={isInitialLoad ? "instant" : "smooth"}
+      initial={isInitialLoad ? "instant" : "smooth"}
     >
       {/* StickToBottom.Content wraps the actual scrollable content */}
       <StickToBottom.Content className="flex flex-col gap-1 p-2">
@@ -247,14 +291,23 @@ export function ChatMessages({
             </motion.div>
           )}
           {messages.map((message) => {
-            const messageKey = message.id || `${message.role}-${message.content.substring(0, 10)}`;
-            const isInitialMessage = initialMessageIdsRef.current.has(messageKey);
+            const messageKey =
+              message.id ||
+              `${message.role}-${message.content.substring(0, 10)}`;
+            const isInitialMessage =
+              initialMessageIdsRef.current.has(messageKey);
 
-            const variants = { initial: { opacity: 0 }, animate: { opacity: 1 } };
+            const variants = {
+              initial: { opacity: 0 },
+              animate: { opacity: 1 },
+            };
             let bgColorClass = "";
-            if (message.role === "user") bgColorClass = "bg-yellow-100 text-black";
-            else if (message.role === "assistant") bgColorClass = "bg-blue-100 text-black";
-            else if (message.role === "human") bgColorClass = getUserColorClass(message.username);
+            if (message.role === "user")
+              bgColorClass = "bg-yellow-100 text-black";
+            else if (message.role === "assistant")
+              bgColorClass = "bg-blue-100 text-black";
+            else if (message.role === "human")
+              bgColorClass = getUserColorClass(message.username);
 
             return (
               <motion.div
@@ -264,12 +317,24 @@ export function ChatMessages({
                 initial={isInitialMessage ? "animate" : "initial"}
                 animate="animate"
                 transition={{ type: "spring", duration: 0.4 }}
-                className={`flex flex-col z-10 w-full ${message.role === "user" ? "items-end" : "items-start"}`}
-                style={{ transformOrigin: message.role === "user" ? "bottom right" : "bottom left" }}
-                onMouseEnter={() => !isInteractingWithPreview && setHoveredMessageId(messageKey)}
-                onMouseLeave={() => !isInteractingWithPreview && setHoveredMessageId(null)}
+                className={`flex flex-col z-10 w-full ${
+                  message.role === "user" ? "items-end" : "items-start"
+                }`}
+                style={{
+                  transformOrigin:
+                    message.role === "user" ? "bottom right" : "bottom left",
+                }}
+                onMouseEnter={() =>
+                  !isInteractingWithPreview && setHoveredMessageId(messageKey)
+                }
+                onMouseLeave={() =>
+                  !isInteractingWithPreview && setHoveredMessageId(null)
+                }
               >
-                <motion.div layout="position" className="text-[16px] text-gray-500 mb-0.5 font-['Geneva-9'] mb-[-2px] select-text flex items-center gap-2">
+                <motion.div
+                  layout="position"
+                  className="text-[16px] text-gray-500 mb-0.5 font-['Geneva-9'] mb-[-2px] select-text flex items-center gap-2"
+                >
                   {message.role === "user" && (
                     <motion.button
                       initial={{ opacity: 0, scale: 0.8 }}
@@ -287,21 +352,22 @@ export function ChatMessages({
                       )}
                     </motion.button>
                   )}
-                  {message.username || (message.role === "user" ? "You" : "Ryo")}{" "}
+                  {message.username ||
+                    (message.role === "user" ? "You" : "Ryo")}{" "}
                   <span className="text-gray-400 select-text">
                     {message.createdAt ? (
                       (() => {
                         const messageDate = new Date(message.createdAt);
                         const today = new Date();
-                        const isBeforeToday = 
+                        const isBeforeToday =
                           messageDate.getDate() !== today.getDate() ||
                           messageDate.getMonth() !== today.getMonth() ||
                           messageDate.getFullYear() !== today.getFullYear();
-                        
-                        return isBeforeToday 
+
+                        return isBeforeToday
                           ? messageDate.toLocaleDateString([], {
-                              month: 'short',
-                              day: 'numeric',
+                              month: "short",
+                              day: "numeric",
                             })
                           : messageDate.toLocaleTimeString([], {
                               hour: "numeric",
@@ -331,41 +397,256 @@ export function ChatMessages({
                   )}
                 </motion.div>
 
-                <motion.div
-                  layout="position"
-                  initial={{
+                {/* Assistant Message Rendering Logic */}
+                {message.role === "assistant" ? (
+                  (() => {
+                    // --- START: Clean content & Determine Rendering ---
+                    let processedContent = message.content;
+                    if (isUrgentMessage(processedContent)) {
+                      processedContent = processedContent.slice(4).trimStart();
+                    }
+                    processedContent = cleanAppControlMarkup(processedContent);
+                    processedContent = cleanTextEditMarkup(processedContent);
+
+                    // Check for incomplete edits using ORIGINAL content
+                    const hasIncompleteXmlTags =
+                      /<textedit:(insert|replace|delete)/i.test(
+                        message.content
+                      ) &&
+                      (() => {
+                        const openTags = (
+                          message.content.match(
+                            /<textedit:(insert|replace|delete)/g
+                          ) || []
+                        ).length;
+                        const closeTags = (
+                          message.content.match(
+                            /<\/textedit:(insert|replace)>|<textedit:delete[^>]*\/>/g
+                          ) || []
+                        ).length;
+                        return openTags !== closeTags;
+                      })();
+
+                    // Determine if HTML preview is needed based on CLEANED content
+                    const {
+                      hasHtml: shouldRenderHtmlPreview,
+                      htmlContent,
+                      textContent,
+                    } = extractHtmlContent(processedContent);
+                    // --- END: Clean content & Determine Rendering ---
+
+                    // Determine bubble class based on whether HtmlPreview will render
+                    const bubbleClassName = shouldRenderHtmlPreview
+                      ? "w-full p-[1px] m-0 outline-0 ring-0 !bg-transparent" // Style for HTML Preview
+                      : `w-fit max-w-[90%] p-1.5 px-2 ${
+                          bgColorClass || "bg-blue-100 text-black"
+                        } min-h-[12px] rounded leading-snug text-[12px] font-geneva-12 break-words select-text`; // Normal bubble style
+
+                    return (
+                      <motion.div
+                        layout="position"
+                        initial={{
+                          // Use bgColorClass if available, otherwise default to assistant blue
+                          backgroundColor: bgColorClass
+                            .split(" ")[0]
+                            .includes("pink")
+                            ? "#fce7f3"
+                            : bgColorClass.split(" ")[0].includes("purple")
+                            ? "#f3e8ff"
+                            : bgColorClass.split(" ")[0].includes("indigo")
+                            ? "#e0e7ff"
+                            : bgColorClass.split(" ")[0].includes("teal")
+                            ? "#ccfbf1"
+                            : bgColorClass.split(" ")[0].includes("lime")
+                            ? "#ecfccb"
+                            : bgColorClass.split(" ")[0].includes("amber")
+                            ? "#fef3c7"
+                            : bgColorClass.split(" ")[0].includes("cyan")
+                            ? "#cffafe"
+                            : bgColorClass.split(" ")[0].includes("rose")
+                            ? "#ffe4e6"
+                            : "#dbeafe", // Default assistant blue
+                          color: "#000000",
+                        }}
+                        animate={
+                          isUrgentMessage(message.content)
+                            ? {
+                                backgroundColor: [
+                                  "#fee2e2", // Start with red for urgent (lighter red-100)
+                                  // Determine the final background color based on bgColorClass or default blue
+                                  bgColorClass.split(" ")[0].includes("pink")
+                                    ? "#fce7f3"
+                                    : bgColorClass
+                                        .split(" ")[0]
+                                        .includes("purple")
+                                    ? "#f3e8ff"
+                                    : bgColorClass
+                                        .split(" ")[0]
+                                        .includes("indigo")
+                                    ? "#e0e7ff"
+                                    : bgColorClass
+                                        .split(" ")[0]
+                                        .includes("teal")
+                                    ? "#ccfbf1"
+                                    : bgColorClass
+                                        .split(" ")[0]
+                                        .includes("lime")
+                                    ? "#ecfccb"
+                                    : bgColorClass
+                                        .split(" ")[0]
+                                        .includes("amber")
+                                    ? "#fef3c7"
+                                    : bgColorClass
+                                        .split(" ")[0]
+                                        .includes("cyan")
+                                    ? "#cffafe"
+                                    : bgColorClass
+                                        .split(" ")[0]
+                                        .includes("rose")
+                                    ? "#ffe4e6"
+                                    : "#dbeafe", // Default assistant blue (removed redundant role check)
+                                ],
+                                color: ["#C92D2D", "#000000"],
+                                transition: {
+                                  duration: 1,
+                                  repeat: 1,
+                                  repeatType: "reverse",
+                                  ease: "easeInOut",
+                                  delay: 0,
+                                },
+                              }
+                            : {}
+                        }
+                        className={bubbleClassName} // Apply the determined class name
+                      >
+                        <motion.div className="select-text whitespace-pre-wrap">
+                          {hasIncompleteXmlTags ? (
+                            <motion.span
+                              initial={{ opacity: 1 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ duration: 0 }}
+                              className="select-text italic"
+                            >
+                              editing...
+                            </motion.span>
+                          ) : (
+                            <>
+                              {/* Render text content */}
+                              {textContent &&
+                                segmentText(textContent).map((segment, idx) => (
+                                  <motion.span
+                                    key={idx}
+                                    initial={
+                                      isInitialMessage
+                                        ? { opacity: 1, y: 0 }
+                                        : { opacity: 0, y: 12 }
+                                    }
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`select-text ${
+                                      isEmojiOnly(textContent)
+                                        ? "text-[24px]"
+                                        : ""
+                                    } ${
+                                      segment.type === "bold"
+                                        ? "font-bold"
+                                        : segment.type === "italic"
+                                        ? "italic"
+                                        : ""
+                                    }`}
+                                    style={{ userSelect: "text" }}
+                                    transition={{
+                                      duration: 0.15,
+                                      delay: idx * 0.05,
+                                      ease: "easeOut",
+                                      onComplete: () => {
+                                        // Play sound on animation complete
+                                        if (idx % 2 === 0) {
+                                          playNote();
+                                        }
+                                        // No need for handleAnimationComplete for scrolling
+                                      },
+                                    }}
+                                  >
+                                    {segment.content}
+                                  </motion.span>
+                                ))}
+
+                              {/* Render HTML preview ONLY if needed */}
+                              {shouldRenderHtmlPreview && htmlContent && (
+                                <HtmlPreview
+                                  htmlContent={htmlContent}
+                                  onInteractionChange={
+                                    setIsInteractingWithPreview
+                                  }
+                                  isStreaming={
+                                    isLoading &&
+                                    message === messages[messages.length - 1]
+                                  }
+                                  playElevatorMusic={playElevatorMusic}
+                                  stopElevatorMusic={stopElevatorMusic}
+                                  playDingSound={playDingSound}
+                                />
+                              )}
+                            </>
+                          )}
+                        </motion.div>
+                      </motion.div>
+                    );
+                  })()
+                ) : (
+                  // User/Human Message Rendering (Keep existing logic)
+                  <motion.div
+                    layout="position"
+                    initial={{
                       backgroundColor:
-                        message.role === "user" ? "#fef9c3" : 
-                        message.role === "assistant" ? "#dbeafe" :
-                        // For human messages, convert bg-color-100 to hex (approximately)
-                        bgColorClass.split(" ")[0].includes("pink") ? "#fce7f3" :
-                        bgColorClass.split(" ")[0].includes("purple") ? "#f3e8ff" :
-                        bgColorClass.split(" ")[0].includes("indigo") ? "#e0e7ff" :
-                        bgColorClass.split(" ")[0].includes("teal") ? "#ccfbf1" :
-                        bgColorClass.split(" ")[0].includes("lime") ? "#ecfccb" :
-                        bgColorClass.split(" ")[0].includes("amber") ? "#fef3c7" :
-                        bgColorClass.split(" ")[0].includes("cyan") ? "#cffafe" :
-                        bgColorClass.split(" ")[0].includes("rose") ? "#ffe4e6" :
-                        "#f3f4f6", // gray-100 fallback
+                        message.role === "user"
+                          ? "#fef9c3" // Yellow for user
+                          : // For human, use bgColorClass or fallback gray
+                          bgColorClass.split(" ")[0].includes("pink")
+                          ? "#fce7f3"
+                          : bgColorClass.split(" ")[0].includes("purple")
+                          ? "#f3e8ff"
+                          : bgColorClass.split(" ")[0].includes("indigo")
+                          ? "#e0e7ff"
+                          : bgColorClass.split(" ")[0].includes("teal")
+                          ? "#ccfbf1"
+                          : bgColorClass.split(" ")[0].includes("lime")
+                          ? "#ecfccb"
+                          : bgColorClass.split(" ")[0].includes("amber")
+                          ? "#fef3c7"
+                          : bgColorClass.split(" ")[0].includes("cyan")
+                          ? "#cffafe"
+                          : bgColorClass.split(" ")[0].includes("rose")
+                          ? "#ffe4e6"
+                          : "#f3f4f6", // gray-100 fallback for human if no specific color
                       color: "#000000",
                     }}
                     animate={
                       isUrgentMessage(message.content)
                         ? {
                             backgroundColor: [
-                              "#fee2e2", // Start with red for urgent (lighter red-100)
-                              message.role === "user" ? "#fef9c3" : 
-                              message.role === "assistant" ? "#dbeafe" :
-                              // For human messages, convert bg-color-100 to hex (approximately)
-                              bgColorClass.split(" ")[0].includes("pink") ? "#fce7f3" :
-                              bgColorClass.split(" ")[0].includes("purple") ? "#f3e8ff" :
-                              bgColorClass.split(" ")[0].includes("indigo") ? "#e0e7ff" :
-                              bgColorClass.split(" ")[0].includes("teal") ? "#ccfbf1" :
-                              bgColorClass.split(" ")[0].includes("lime") ? "#ecfccb" :
-                              bgColorClass.split(" ")[0].includes("amber") ? "#fef3c7" :
-                              bgColorClass.split(" ")[0].includes("cyan") ? "#cffafe" :
-                              bgColorClass.split(" ")[0].includes("rose") ? "#ffe4e6" :
-                              "#f3f4f6", // gray-100 fallback
+                              "#fee2e2", // Start red
+                              // Final color based on role (user yellow or human color/gray)
+                              message.role === "user"
+                                ? "#fef9c3" // Yellow for user
+                                : // For human, use bgColorClass or fallback gray
+                                bgColorClass.split(" ")[0].includes("pink")
+                                ? "#fce7f3"
+                                : bgColorClass.split(" ")[0].includes("purple")
+                                ? "#f3e8ff"
+                                : bgColorClass.split(" ")[0].includes("indigo")
+                                ? "#e0e7ff"
+                                : bgColorClass.split(" ")[0].includes("teal")
+                                ? "#ccfbf1"
+                                : bgColorClass.split(" ")[0].includes("lime")
+                                ? "#ecfccb"
+                                : bgColorClass.split(" ")[0].includes("amber")
+                                ? "#fef3c7"
+                                : bgColorClass.split(" ")[0].includes("cyan")
+                                ? "#cffafe"
+                                : bgColorClass.split(" ")[0].includes("rose")
+                                ? "#ffe4e6"
+                                : "#f3f4f6", // gray-100 fallback for human if no specific color
                             ],
                             color: ["#C92D2D", "#000000"],
                             transition: {
@@ -373,166 +654,86 @@ export function ChatMessages({
                               repeat: 1,
                               repeatType: "reverse",
                               ease: "easeInOut",
-                              delay: 0.,
+                              delay: 0,
                             },
                           }
                         : {}
                     }
-                  className={`${
-                    isHtmlCodeBlock(message.content).isHtml ||
-                    (isLoading && message === messages[messages.length - 1] && message.content.includes("```"))
-                      ? "w-full p-[1px] m-0 outline-0 ring-0 !bg-transparent"
-                      : `w-fit max-w-[90%] p-1.5 px-2 ${bgColorClass || (message.role === "user" ? "bg-yellow-100 text-black" : "bg-blue-100 text-black")}`
-                  } min-h-[12px] rounded leading-snug text-[12px] font-geneva-12 break-words select-text`}
-                >
-                  {message.role === "assistant" ? (
-                    <motion.div className="select-text whitespace-pre-wrap">
-                      {(() => {
-                        // Check for XML tags and their completeness
-                        const hasXmlTags =
-                          /<textedit:(insert|replace|delete)/i.test(
-                            message.content
-                          );
-                        if (hasXmlTags) {
-                          // Count opening and closing tags
-                          const openTags = (
-                            message.content.match(
-                              /<textedit:(insert|replace|delete)/g
-                            ) || []
-                          ).length;
-                          const closeTags = (
-                            message.content.match(
-                              /<\/textedit:(insert|replace)>|<textedit:delete[^>]*\/>/g
-                            ) || []
-                          ).length;
-
-                          // If tags are incomplete, show *editing*
-                          if (openTags !== closeTags) {
-                            return (
-                              <motion.span
-                                initial={{ opacity: 1 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0 }}
-                                className="select-text italic"
-                              >
-                                editing...
-                              </motion.span>
-                            );
+                    className={`${
+                      isHtmlCodeBlock(message.content).isHtml
+                        ? "w-full p-[1px] m-0 outline-0 ring-0 !bg-transparent"
+                        : `w-fit max-w-[90%] p-1.5 px-2 ${
+                            bgColorClass ||
+                            (message.role === "user"
+                              ? "bg-yellow-100 text-black"
+                              : "bg-blue-100 text-black")
+                          } min-h-[12px] rounded leading-snug text-[12px] font-geneva-12 break-words select-text`
+                    }`}
+                  >
+                    <span
+                      className={`select-text whitespace-pre-wrap ${
+                        isEmojiOnly(message.content) ? "text-[24px]" : ""
+                      }`}
+                      style={{ userSelect: "text" }}
+                    >
+                      {segmentText(message.content).map((segment, idx) => (
+                        <span
+                          key={idx}
+                          className={
+                            segment.type === "bold"
+                              ? "font-bold"
+                              : segment.type === "italic"
+                              ? "italic"
+                              : ""
                           }
-                        }
-
-                        // Remove "!!!!" prefix and following space from urgent messages
-                        const displayContent = isUrgentMessage(message.content)
-                          ? message.content.slice(4).trimStart()
-                          : message.content;
-
-                        // Check for HTML content
-                        const { hasHtml, htmlContent, textContent } =
-                          extractHtmlContent(displayContent);
-
-                        return (
-                          <>
-                            {/* Show only non-HTML text content */}
-                            {textContent &&
-                              segmentText(textContent).map((segment, idx) => (
-                                <motion.span
-                                  key={idx}
-                                  initial={isInitialMessage ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  className={`select-text ${
-                                    isEmojiOnly(textContent) ? "text-[24px]" : ""
-                                  } ${
-                                    segment.type === "bold"
-                                      ? "font-bold"
-                                      : segment.type === "italic"
-                                      ? "italic"
-                                      : ""
-                                  }`}
-                                  style={{ userSelect: "text" }}
-                                  transition={{
-                                    duration: 0.15,
-                                    delay: idx * 0.05,
-                                    ease: "easeOut",
-                                    onComplete: () => {
-                                      // Play sound on animation complete
-                                      if (idx % 2 === 0) {
-                                        playNote();
-                                      }
-                                      // No need for handleAnimationComplete for scrolling
-                                    },
-                                  }}
-                                >
-                                  {segment.content}
-                                </motion.span>
-                              ))}
-
-                            {/* Show HTML preview if there's HTML content */}
-                            {hasHtml && htmlContent && (
-                              <HtmlPreview
-                                htmlContent={htmlContent}
-                                onInteractionChange={setIsInteractingWithPreview}
-                                isStreaming={isLoading && message === messages[messages.length - 1]}
-                                playElevatorMusic={playElevatorMusic}
-                                stopElevatorMusic={stopElevatorMusic}
-                                playDingSound={playDingSound}
-                              />
-                            )}
-                          </>
-                        );
-                      })()}
-                    </motion.div>
-                  ) : (
-                    <>
-                      <span
-                        className={`select-text whitespace-pre-wrap ${isEmojiOnly(message.content) ? "text-[24px]" : ""}`}
-                        style={{ userSelect: "text" }}
-                      >
-                        {segmentText(message.content).map((segment, idx) => (
-                          <span
-                            key={idx}
-                            className={
-                              segment.type === "bold"
-                                ? "font-bold"
-                                : segment.type === "italic"
-                                ? "italic"
-                                : ""
-                            }
-                          >
-                            {segment.content}
-                          </span>
-                        ))}
-                      </span>
-                      {isHtmlCodeBlock(message.content).isHtml && (
-                        <HtmlPreview
-                          htmlContent={isHtmlCodeBlock(message.content).content}
-                          onInteractionChange={setIsInteractingWithPreview}
-                          playElevatorMusic={playElevatorMusic}
-                          stopElevatorMusic={stopElevatorMusic}
-                          playDingSound={playDingSound}
-                        />
-                      )}
-                    </>
-                  )}
-                </motion.div>
+                        >
+                          {segment.content}
+                        </span>
+                      ))}
+                    </span>
+                    {isHtmlCodeBlock(message.content).isHtml && (
+                      <HtmlPreview
+                        htmlContent={isHtmlCodeBlock(message.content).content}
+                        onInteractionChange={setIsInteractingWithPreview}
+                        playElevatorMusic={playElevatorMusic}
+                        stopElevatorMusic={stopElevatorMusic}
+                        playDingSound={playDingSound}
+                      />
+                    )}
+                  </motion.div>
+                )}
               </motion.div>
             );
           })}
-          {isLoading && (
-            <motion.div
-              layout="position"
-              key="thinking-indicator"
-              initial={{ opacity: 0, y: 10, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-center gap-2 text-gray-500 font-['Geneva-9'] text-[16px] antialiased h-[12px] z-1 pl-1"
-              style={{ transformOrigin: "bottom left" }}
-              // Remove onAnimationComplete related to scrolling
-            >
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Thinking...
-            </motion.div>
-          )}
+          {/* Conditionally render Thinking indicator */}
+          {(() => {
+            const lastMessage = messages[messages.length - 1];
+            const isAssistantStreaming =
+              isLoading &&
+              lastMessage &&
+              lastMessage.role === "assistant" &&
+              lastMessage.content.length > 0;
+
+            // Show Thinking only if loading is true AND the assistant hasn't started streaming content yet
+            if (isLoading && !isAssistantStreaming) {
+              return (
+                <motion.div
+                  layout="position"
+                  key="thinking-indicator"
+                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-2 text-gray-500 font-['Geneva-9'] text-[16px] antialiased h-[12px] z-1 pl-1"
+                  style={{ transformOrigin: "bottom left" }}
+                >
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Thinking...
+                </motion.div>
+              );
+            }
+            return null; // Don't render if not loading or if streaming has started
+          })()}
           {error && (
             <motion.div
               layout="position"
@@ -545,7 +746,12 @@ export function ChatMessages({
               <AlertCircle className="h-3 w-3" />
               <span>{error.message}</span>
               {onRetry && (
-                <Button size="sm" variant="link" onClick={onRetry} className="m-0 p-0 text-[16px] h-0 text-amber-600">
+                <Button
+                  size="sm"
+                  variant="link"
+                  onClick={onRetry}
+                  className="m-0 p-0 text-[16px] h-0 text-amber-600"
+                >
                   Try again
                 </Button>
               )}

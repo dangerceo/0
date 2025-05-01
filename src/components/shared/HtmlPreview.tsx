@@ -1,6 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
-import { Maximize, Minimize, Copy, Check, Save, Code, GripVertical, Plus } from "lucide-react";
+import {
+  Maximize,
+  Minimize,
+  Copy,
+  Check,
+  Save,
+  Code,
+  GripVertical,
+  Plus,
+} from "lucide-react";
 import { createPortal } from "react-dom";
 import * as shiki from "shiki";
 import {
@@ -189,7 +198,9 @@ export default function HtmlPreview({
   const finalProcessedHtmlRef = useRef<string | null>(null);
   const [streamPreviewHtml, setStreamPreviewHtml] = useState<string>(""); // NEW state to hold live HTML preview during streaming
   const lastStreamRenderRef = useRef<number>(0); // To throttle updates
-  const terminalSoundsEnabled = useAppStore(state => state.terminalSoundsEnabled);
+  const terminalSoundsEnabled = useAppStore(
+    (state) => state.terminalSoundsEnabled
+  );
 
   // Ensure base URL has a protocol
   const normalizedBaseUrl = baseUrlForAiContent
@@ -201,7 +212,7 @@ export default function HtmlPreview({
   // Add sound hooks - fallback to local sound hooks if props not provided
   const localMaximizeSound = useSound(Sounds.WINDOW_EXPAND);
   const localMinimizeSound = useSound(Sounds.WINDOW_COLLAPSE);
-  
+
   // Use prop sounds if provided, otherwise use local sounds
   const maximizeSound = propMaximizeSound || localMaximizeSound;
   const minimizeSound = propMinimizeSound || localMinimizeSound;
@@ -237,25 +248,27 @@ export default function HtmlPreview({
   // Listen for ESC key to exit fullscreen
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullScreen) {
+      if (e.key === "Escape" && isFullScreen) {
         minimizeSound.play();
         setIsFullScreen(false);
       }
     };
 
     if (isFullScreen) {
-      document.addEventListener('keydown', handleEscKey);
+      document.addEventListener("keydown", handleEscKey);
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscKey);
+      document.removeEventListener("keydown", handleEscKey);
     };
   }, [isFullScreen, minimizeSound]);
 
   // Enhanced processedHtmlContent with timestamp to force fresh execution
   const processedHtmlContent = (() => {
     const timestamp = `<!-- ts=${contentTimestamp.current} -->`;
-    const baseTag = normalizedBaseUrl ? `<base href="${normalizedBaseUrl}">` : '';
+    const baseTag = normalizedBaseUrl
+      ? `<base href="${normalizedBaseUrl}">`
+      : "";
 
     // Define the script tags and styles that should be added ONLY after streaming
     // Font link MUST be first for potentially faster loading/application
@@ -349,78 +362,104 @@ export default function HtmlPreview({
     let coreHtmlContent = trimmedHtmlContent; // Default to use trimmed content
 
     // NEW: First, strip potential markdown code block fence
-    if (coreHtmlContent.startsWith('```html')) {
-      coreHtmlContent = coreHtmlContent.substring('```html'.length).trim();
-    } else if (coreHtmlContent.startsWith('```')) {
-      coreHtmlContent = coreHtmlContent.substring('```'.length).trim();
+    if (coreHtmlContent.startsWith("```html")) {
+      coreHtmlContent = coreHtmlContent.substring("```html".length).trim();
+    } else if (coreHtmlContent.startsWith("```")) {
+      coreHtmlContent = coreHtmlContent.substring("```".length).trim();
     }
 
     // Remove trailing ``` if present
-    if (coreHtmlContent.endsWith('```')) {
-        coreHtmlContent = coreHtmlContent.substring(0, coreHtmlContent.length - '```'.length).trim();
+    if (coreHtmlContent.endsWith("```")) {
+      coreHtmlContent = coreHtmlContent
+        .substring(0, coreHtmlContent.length - "```".length)
+        .trim();
     }
 
     // NEW: Strip leading text before the first tag '<'
-    const firstTagIndex = coreHtmlContent.indexOf('<');
+    const firstTagIndex = coreHtmlContent.indexOf("<");
     if (firstTagIndex > 0) {
       // If '<' is found and it's not the first character, strip the leading text
       coreHtmlContent = coreHtmlContent.substring(firstTagIndex);
     } else if (firstTagIndex === -1) {
       // If no '<' is found at all, the content is likely just text, clear it or handle as needed
       // For now, let's assume we want to render nothing if there's no HTML tag.
-      coreHtmlContent = ''; 
+      coreHtmlContent = "";
     }
     // If firstTagIndex is 0, it already starts with a tag, no stripping needed.
 
     // Now, check for and extract content within <html> tags
-    const htmlStartIndex = coreHtmlContent.toLowerCase().indexOf('<html');
-    const htmlEndIndex = coreHtmlContent.toLowerCase().lastIndexOf('</html>');
+    const htmlStartIndex = coreHtmlContent.toLowerCase().indexOf("<html");
+    const htmlEndIndex = coreHtmlContent.toLowerCase().lastIndexOf("</html>");
 
     if (htmlStartIndex !== -1) {
-        // Found <html> tag
-        if (htmlEndIndex > htmlStartIndex) {
-            // Found both <html> and </html>, extract the content between them (inclusive)
-            coreHtmlContent = coreHtmlContent.substring(htmlStartIndex, htmlEndIndex + '</html>'.length);
-        } else {
-            // Found <html> but no </html> after it, take content from <html> to the end
-            coreHtmlContent = coreHtmlContent.substring(htmlStartIndex);
-        }
+      // Found <html> tag
+      if (htmlEndIndex > htmlStartIndex) {
+        // Found both <html> and </html>, extract the content between them (inclusive)
+        coreHtmlContent = coreHtmlContent.substring(
+          htmlStartIndex,
+          htmlEndIndex + "</html>".length
+        );
+      } else {
+        // Found <html> but no </html> after it, take content from <html> to the end
+        coreHtmlContent = coreHtmlContent.substring(htmlStartIndex);
+      }
     }
     // If no <html> tag, coreHtmlContent remains the original trimmedHtmlContent (fragment)
     // --- End modification ---
 
     // Use coreHtmlContent for subsequent checks and processing
-    const isFullHtmlDoc = /<!DOCTYPE html>/i.test(coreHtmlContent) || /<html[\s>]/i.test(coreHtmlContent);
+    const isFullHtmlDoc =
+      /<!DOCTYPE html>/i.test(coreHtmlContent) ||
+      /<html[\s>]/i.test(coreHtmlContent);
 
     if (isFullHtmlDoc) {
-        let modifiedContent = coreHtmlContent; // Start with the potentially extracted content
+      let modifiedContent = coreHtmlContent; // Start with the potentially extracted content
 
-        // Attempt to inject into <head>
-        const headEndMatch = /<\/head>/i.exec(modifiedContent);
-        if (headEndMatch) {
-            // Inject just before closing </head> tag
-            modifiedContent = modifiedContent.slice(0, headEndMatch.index) + postStreamHeadContent + modifiedContent.slice(headEndMatch.index);
+      // Attempt to inject into <head>
+      const headEndMatch = /<\/head>/i.exec(modifiedContent);
+      if (headEndMatch) {
+        // Inject just before closing </head> tag
+        modifiedContent =
+          modifiedContent.slice(0, headEndMatch.index) +
+          postStreamHeadContent +
+          modifiedContent.slice(headEndMatch.index);
+      } else {
+        // No </head>, try injecting after <head> or <html>, or prepend a new head
+        const headStartMatch = /<head[^>]*>/i.exec(modifiedContent);
+        if (headStartMatch) {
+          modifiedContent =
+            modifiedContent.slice(
+              0,
+              headStartMatch.index + headStartMatch[0].length
+            ) +
+            postStreamHeadContent +
+            modifiedContent.slice(
+              headStartMatch.index + headStartMatch[0].length
+            );
         } else {
-            // No </head>, try injecting after <head> or <html>, or prepend a new head
-            const headStartMatch = /<head[^>]*>/i.exec(modifiedContent);
-            if (headStartMatch) {
-                 modifiedContent = modifiedContent.slice(0, headStartMatch.index + headStartMatch[0].length) + postStreamHeadContent + modifiedContent.slice(headStartMatch.index + headStartMatch[0].length);
-            } else {
-                const htmlStartMatch = /<html[^>]*>/i.exec(modifiedContent);
-                if (htmlStartMatch) {
-                    // Inject head after opening <html> tag
-                     modifiedContent = modifiedContent.slice(0, htmlStartMatch.index + htmlStartMatch[0].length) + `<head>${postStreamHeadContent}</head>` + modifiedContent.slice(htmlStartMatch.index + htmlStartMatch[0].length);
-                } else {
-                    // Prepend head if no <html> tag found (very unlikely, might be invalid HTML)
-                    modifiedContent = `<head>${postStreamHeadContent}</head>` + modifiedContent;
-                }
-            }
+          const htmlStartMatch = /<html[^>]*>/i.exec(modifiedContent);
+          if (htmlStartMatch) {
+            // Inject head after opening <html> tag
+            modifiedContent =
+              modifiedContent.slice(
+                0,
+                htmlStartMatch.index + htmlStartMatch[0].length
+              ) +
+              `<head>${postStreamHeadContent}</head>` +
+              modifiedContent.slice(
+                htmlStartMatch.index + htmlStartMatch[0].length
+              );
+          } else {
+            // Prepend head if no <html> tag found (very unlikely, might be invalid HTML)
+            modifiedContent =
+              `<head>${postStreamHeadContent}</head>` + modifiedContent;
+          }
         }
+      }
 
-        // We no longer need to inject the click interceptor script since it's already in the head
-        // Just return the modified content
-        return modifiedContent;
-
+      // We no longer need to inject the click interceptor script since it's already in the head
+      // Just return the modified content
+      return modifiedContent;
     } else {
       // Construct the document for partial HTML fragments
       return `<!DOCTYPE html>
@@ -472,7 +511,8 @@ export default function HtmlPreview({
       try {
         const highlighter = await getHighlighterInstance();
         // Use the stored final HTML content for highlighting
-        const contentToHighlight = finalProcessedHtmlRef.current || processedHtmlContent;
+        const contentToHighlight =
+          finalProcessedHtmlRef.current || processedHtmlContent;
         if (isMounted && contentToHighlight) {
           const highlighted = highlighter.codeToHtml(contentToHighlight, {
             lang: "html",
@@ -488,11 +528,11 @@ export default function HtmlPreview({
     // Only initialize Shiki and highlight code when code view is active
     // Reset highlightedCode if showCode becomes false
     if (showCode) {
-        if (!highlightedCode) {
-            highlight();
-        }
+      if (!highlightedCode) {
+        highlight();
+      }
     } else {
-        setHighlightedCode(""); // Clear when code view is hidden
+      setHighlightedCode(""); // Clear when code view is hidden
     }
 
     return () => {
@@ -510,7 +550,13 @@ export default function HtmlPreview({
         }
       };
     }
-  }, [isStreaming, playElevatorMusic, stopElevatorMusic, mode, terminalSoundsEnabled]);
+  }, [
+    isStreaming,
+    playElevatorMusic,
+    stopElevatorMusic,
+    mode,
+    terminalSoundsEnabled,
+  ]);
 
   // Play a completion sound when streaming ends
   useEffect(() => {
@@ -564,7 +610,8 @@ export default function HtmlPreview({
     if (!isFullScreen) {
       maximizeSound.play();
       // Ensure content is updated when going fullscreen
-      const finalContent = finalProcessedHtmlRef.current || processedHtmlContent;
+      const finalContent =
+        finalProcessedHtmlRef.current || processedHtmlContent;
       updateIframeContent(finalContent);
     } else {
       minimizeSound.play();
@@ -575,7 +622,8 @@ export default function HtmlPreview({
   // Add effect to update fullscreen content when it changes
   useEffect(() => {
     if (isFullScreen && !isStreaming) {
-      const finalContent = finalProcessedHtmlRef.current || processedHtmlContent;
+      const finalContent =
+        finalProcessedHtmlRef.current || processedHtmlContent;
       updateIframeContent(finalContent);
     }
   }, [isFullScreen, isStreaming, processedHtmlContent]);
@@ -584,42 +632,42 @@ export default function HtmlPreview({
   const handleDocumentMouseMove = (e: MouseEvent) => {
     const deltaX = Math.abs(e.clientX - lastDragEndTime.current);
     const deltaY = Math.abs(e.clientY - lastDragEndTime.current);
-    
+
     if (deltaX > 5 || deltaY > 5) {
       setIsDragging(true);
       wasDragging.current = true;
     }
   };
-  
+
   // Document-level touch move handler
   const handleDocumentTouchMove = (e: TouchEvent) => {
     if (!e.touches[0]) return;
-    
+
     const deltaX = Math.abs(e.touches[0].clientX - lastDragEndTime.current);
     const deltaY = Math.abs(e.touches[0].clientY - lastDragEndTime.current);
-    
+
     if (deltaX > 5 || deltaY > 5) {
       wasDragging.current = true;
     }
   };
-  
+
   // Document-level mouse up handler
   const handleDocumentMouseUp = () => {
     cleanup();
   };
-  
+
   // Document-level touch end handler
   const handleDocumentTouchUp = () => {
     cleanup();
   };
-  
+
   // Clean up all handlers
   const cleanup = () => {
-    document.removeEventListener('mousemove', handleDocumentMouseMove);
-    document.removeEventListener('touchmove', handleDocumentTouchMove);
-    document.removeEventListener('mouseup', handleDocumentMouseUp);
-    document.removeEventListener('touchend', handleDocumentTouchUp);
-    
+    document.removeEventListener("mousemove", handleDocumentMouseMove);
+    document.removeEventListener("touchmove", handleDocumentTouchMove);
+    document.removeEventListener("mouseup", handleDocumentMouseUp);
+    document.removeEventListener("touchend", handleDocumentTouchUp);
+
     // Reset dragging state after cooldown
     setTimeout(() => {
       setIsDragging(false);
@@ -629,7 +677,7 @@ export default function HtmlPreview({
   // Function to handle toolbar toggle
   const toggleToolbarCollapse = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (!isDragging) {
       setIsToolbarCollapsed(!isToolbarCollapsed);
       if (!isToolbarCollapsed) {
@@ -639,7 +687,7 @@ export default function HtmlPreview({
       }
     }
   };
-  
+
   // Handle direct click on plus icon (when collapsed)
   const handlePlusClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -653,61 +701,82 @@ export default function HtmlPreview({
 
     // Selectively filter style tags content instead of removing them completely
     let sanitized = html.replace(
-  /<style\b[^>]*>([\s\S]*?)<\/style>/gi,
-  (_match, styleContent) => {
-    // Filter out global font/color styles but keep other styles
-    const filteredStyle = styleContent
-      .replace(/(\s|^)(html|body|:root)\s*{[^}]*}/gi, '')    // Remove global element styles
-      .replace(/font-family\s*:\s*[^;}]+(;|$)/gi, '')         // Remove font-family declarations
-      .replace(/color\s*:\s*[^;}]+(;|$)/gi, '')               // Remove color declarations
-      .replace(/\s*@font-face\s*{[^}]*}/gi, '');              // Remove @font-face blocks
+      /<style\b[^>]*>([\s\S]*?)<\/style>/gi,
+      (_match, styleContent) => {
+        // Filter out global font/color styles but keep other styles
+        const filteredStyle = styleContent
+          .replace(/(\s|^)(html|body|:root)\s*{[^}]*}/gi, "") // Remove global element styles
+          .replace(/font-family\s*:\s*[^;}]+(;|$)/gi, "") // Remove font-family declarations
+          .replace(/color\s*:\s*[^;}]+(;|$)/gi, "") // Remove color declarations
+          .replace(/\s*@font-face\s*{[^}]*}/gi, ""); // Remove @font-face blocks
 
-    return `<style>${filteredStyle}</style>`;
-  }
-);
+        return `<style>${filteredStyle}</style>`;
+      }
+    );
 
     // Remove all script tags and their contents
-    sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    
+    sanitized = sanitized.replace(
+      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+      ""
+    );
+
     // Remove all link tags
-    sanitized = sanitized.replace(/<link\b[^>]*>/gi, '');
+    sanitized = sanitized.replace(/<link\b[^>]*>/gi, "");
 
     // Remove inline position:fixed styles
-    sanitized = sanitized.replace(/position\s*:\s*fixed/gi, "position: relative");
-    sanitized = sanitized.replace(/position\s*:\s*sticky/gi, "position: relative");
-    
+    sanitized = sanitized.replace(
+      /position\s*:\s*fixed/gi,
+      "position: relative"
+    );
+    sanitized = sanitized.replace(
+      /position\s*:\s*sticky/gi,
+      "position: relative"
+    );
+
     // Handle Tailwind classes - convert fixed/sticky to relative
     const processTailwindClasses = (classStr: string): string => {
       const classes = classStr.split(/\s+/);
-      return classes.map(cls => {
-        // Replace standalone fixed/sticky classes
-        if (cls === 'fixed') return 'relative';
-        if (cls === 'sticky') return 'relative';
-        
-        // Remove specific positioning classes
-        if (/^(top|bottom|left|right|inset)(-|$)/.test(cls)) return '';
-        
-        // Keep all other classes unchanged
-        return cls;
-      }).filter(Boolean).join(' ');
+      return classes
+        .map((cls) => {
+          // Replace standalone fixed/sticky classes
+          if (cls === "fixed") return "relative";
+          if (cls === "sticky") return "relative";
+
+          // Remove specific positioning classes
+          if (/^(top|bottom|left|right|inset)(-|$)/.test(cls)) return "";
+
+          // Keep all other classes unchanged
+          return cls;
+        })
+        .filter(Boolean)
+        .join(" ");
     };
-    
+
     // Process standard HTML class attributes
-    sanitized = sanitized.replace(/class="([^"]*)"/gi, (_match, classContent) => {
-      return `class="${processTailwindClasses(classContent)}"`;
-    });
-    
+    sanitized = sanitized.replace(
+      /class="([^"]*)"/gi,
+      (_match, classContent) => {
+        return `class="${processTailwindClasses(classContent)}"`;
+      }
+    );
+
     // Process React className attributes
-    sanitized = sanitized.replace(/className="([^"]*)"/gi, (_match, classContent) => {
-      return `className="${processTailwindClasses(classContent)}"`;
-    });
-    
+    sanitized = sanitized.replace(
+      /className="([^"]*)"/gi,
+      (_match, classContent) => {
+        return `className="${processTailwindClasses(classContent)}"`;
+      }
+    );
+
     // Handle inline styles
-    sanitized = sanitized.replace(/(position\s*:\s*relative.*?)(top|left|right|bottom)\s*:\s*[^;]+/gi, '$1$2: auto');
-    
+    sanitized = sanitized.replace(
+      /(position\s*:\s*relative.*?)(top|left|right|bottom)\s*:\s*[^;]+/gi,
+      "$1$2: auto"
+    );
+
     // Handle z-index in fixed elements that were converted
-    sanitized = sanitized.replace(/z-index\s*:\s*\d+/gi, 'z-index: auto');
-    
+    sanitized = sanitized.replace(/z-index\s*:\s*\d+/gi, "z-index: auto");
+
     return sanitized;
   };
 
@@ -719,7 +788,7 @@ export default function HtmlPreview({
       if (now - lastStreamRenderRef.current > 500) {
         lastStreamRenderRef.current = now;
         const { htmlContent: extracted } = extractHtmlContent(htmlContent);
-        
+
         // Don't sanitize or update if content hasn't meaningfully changed
         if (extracted && streamPreviewHtml !== extracted) {
           // Apply sanitization to remove fixed positioning before setting stream preview
@@ -738,13 +807,29 @@ export default function HtmlPreview({
     <>
       <motion.div
         ref={previewRef}
-        className={`${isInternetExplorer ? '' : 'rounded'} bg-white overflow-auto m-0 relative ${className} ${isStreaming ? 'loading-pulse' : ''}`}
+        className={`${
+          isInternetExplorer ? "" : "rounded"
+        } bg-white overflow-auto m-0 relative ${className} ${
+          isStreaming ? "loading-pulse" : ""
+        }`}
         style={{
-          maxHeight: isInternetExplorer ? "100%" : (isFullScreen ? originalHeight || minHeight : maxHeight),
+          maxHeight: isInternetExplorer
+            ? "100%"
+            : isFullScreen
+            ? originalHeight || minHeight
+            : maxHeight,
           // pointerEvents: isStreaming ? "none" : "auto", // Allow interaction with text stream potentially
           opacity: isFullScreen ? 0 : 1,
-          height: isInternetExplorer ? "100%" : (isFullScreen ? originalHeight || minHeight : "auto"),
-          boxShadow: isInternetExplorer ? "none" : (isFullScreen ? "none" : "0 0 0 1px rgba(0, 0, 0, 0.3)"),
+          height: isInternetExplorer
+            ? "100%"
+            : isFullScreen
+            ? originalHeight || minHeight
+            : "auto",
+          boxShadow: isInternetExplorer
+            ? "none"
+            : isFullScreen
+            ? "none"
+            : "0 0 0 1px rgba(0, 0, 0, 0.3)",
           visibility: isFullScreen ? "hidden" : "visible",
           minHeight: minHeight, // Ensure minHeight is respected
         }}
@@ -769,12 +854,12 @@ export default function HtmlPreview({
             className="absolute inset-0 bg-gray-300 z-10 pointer-events-none"
             initial={{ opacity: 0.2 }} // Start at lower opacity
             animate={{
-              opacity: [0.2, 0.6, 0.2] // Loop between 0.6 and 1
+              opacity: [0.2, 0.6, 0.2], // Loop between 0.6 and 1
             }}
             transition={{
               duration: 3, // Slower duration for breathing effect
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: "easeInOut",
             }}
           />
         )}
@@ -827,7 +912,9 @@ export default function HtmlPreview({
               onClick={toggleFullScreen}
               onMouseDown={(e) => e.stopPropagation()}
               className="flex items-center justify-center w-6 h-6 hover:bg-black/10 rounded group"
-              aria-label={isFullScreen ? "Minimize preview" : "Maximize preview"}
+              aria-label={
+                isFullScreen ? "Minimize preview" : "Maximize preview"
+              }
               disabled={isStreaming}
             >
               {isFullScreen ? (
@@ -849,7 +936,11 @@ export default function HtmlPreview({
           <div
             className="h-full w-full relative overflow-auto"
             style={{
-              maxHeight: isInternetExplorer ? "100%" : (typeof minHeight === "string" ? minHeight : `${minHeight}px`),
+              maxHeight: isInternetExplorer
+                ? "100%"
+                : typeof minHeight === "string"
+                ? minHeight
+                : `${minHeight}px`,
             }}
           >
             {streamPreviewHtml ? (
@@ -859,7 +950,7 @@ export default function HtmlPreview({
               />
             ) : (
               <pre className="p-2 text-[12px] font-monaco antialiased text-gray-700 whitespace-pre-wrap break-words">
-                {htmlContent.split('\n').slice(-8).join('\n')}
+                {htmlContent.split("\n").slice(-8).join("\n")}
               </pre>
             )}
           </div>
@@ -873,7 +964,11 @@ export default function HtmlPreview({
             className="w-full h-full border-0"
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation allow-modals allow-pointer-lock allow-downloads allow-storage-access-by-user-activation"
             style={{
-              height: isInternetExplorer ? "100%" : (typeof minHeight === "string" ? minHeight : `${minHeight}px`),
+              height: isInternetExplorer
+                ? "100%"
+                : typeof minHeight === "string"
+                ? minHeight
+                : `${minHeight}px`,
               display: "block",
               // pointerEvents: isStreaming ? "none" : "auto", // Already handled by parent div conditional
               position: "relative",
@@ -903,15 +998,15 @@ export default function HtmlPreview({
                 className="absolute inset-0 flex flex-col"
                 initial={{
                   y: "15%",
-                  opacity: 0
+                  opacity: 0,
                 }}
                 animate={{
                   y: 0,
-                  opacity: 1
+                  opacity: 1,
                 }}
                 exit={{
                   y: "15%",
-                  opacity: 0
+                  opacity: 0,
                 }}
                 transition={{
                   type: "spring",
@@ -919,7 +1014,7 @@ export default function HtmlPreview({
                   damping: 25,
                 }}
               >
-                <div 
+                <div
                   ref={fullscreenWrapperRef}
                   className="relative w-full h-full overflow-hidden"
                 >
@@ -982,11 +1077,13 @@ export default function HtmlPreview({
                         {streamPreviewHtml ? (
                           <div
                             className="generated-html-stream font-geneva-12 text-sm p-4"
-                            dangerouslySetInnerHTML={{ __html: streamPreviewHtml }}
+                            dangerouslySetInnerHTML={{
+                              __html: streamPreviewHtml,
+                            }}
                           />
                         ) : (
                           <pre className="p-4 text-xs font-geneva-12 text-gray-700 whitespace-pre-wrap break-words">
-                            {htmlContent.split('\n').slice(-15).join('\n')}
+                            {htmlContent.split("\n").slice(-15).join("\n")}
                           </pre>
                         )}
                       </motion.div>
@@ -1003,7 +1100,10 @@ export default function HtmlPreview({
                         onMouseDown={(e) => e.stopPropagation()}
                         style={{
                           pointerEvents: isDragging ? "none" : "auto",
-                          ...(isInternetExplorer && { position: 'absolute', inset: 0 })
+                          ...(isInternetExplorer && {
+                            position: "absolute",
+                            inset: 0,
+                          }),
                         }}
                       />
                     )}
@@ -1017,12 +1117,12 @@ export default function HtmlPreview({
                         <motion.div
                           className="w-full h-full bg-gray-400"
                           animate={{
-                            opacity: [0.05, 0.2, 0.05]
+                            opacity: [0.05, 0.2, 0.05],
                           }}
                           transition={{
                             duration: 1.5,
                             repeat: Infinity,
-                            ease: "easeInOut"
+                            ease: "easeInOut",
                           }}
                         />
                       </div>
@@ -1030,7 +1130,7 @@ export default function HtmlPreview({
                   </motion.div>
 
                   {/* Toolbar - topmost layer */}
-                  <motion.div 
+                  <motion.div
                     ref={controlsRef}
                     className="absolute z-200"
                     initial={false}
@@ -1048,25 +1148,31 @@ export default function HtmlPreview({
                       if (clickTimerRef.current) {
                         clearTimeout(clickTimerRef.current);
                       }
-                      
+
                       clickTimerRef.current = setTimeout(() => {
                         setIsDragging(false);
                       }, 100);
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    style={{ top: 0, right: 0, padding: 16, minHeight: '40px', minWidth: '40px'}} // Default position: top-right
+                    style={{
+                      top: 0,
+                      right: 0,
+                      padding: 16,
+                      minHeight: "40px",
+                      minWidth: "40px",
+                    }} // Default position: top-right
                   >
-                    <motion.div 
+                    <motion.div
                       className="bg-neutral-700/40 backdrop-blur-sm rounded-full overflow-hidden flex items-center justify-center gap-1"
                       layout
                       onClick={(e) => e.stopPropagation()}
                       initial={false}
                       animate={{
-                        width: isToolbarCollapsed ? '40px' : 'auto',
-                        height: isToolbarCollapsed ? '40px' : '40px',
-                        padding: isToolbarCollapsed ? '0px' : '4px'
+                        width: isToolbarCollapsed ? "40px" : "auto",
+                        height: isToolbarCollapsed ? "40px" : "40px",
+                        padding: isToolbarCollapsed ? "0px" : "4px",
                       }}
-                      transition={{ 
+                      transition={{
                         duration: 0.15,
                       }}
                     >
@@ -1079,29 +1185,32 @@ export default function HtmlPreview({
                         }}
                         transition={{ duration: 0.2 }}
                         style={{
-                          pointerEvents: isToolbarCollapsed ? 'auto' : 'none',
-                          cursor: 'pointer'
+                          pointerEvents: isToolbarCollapsed ? "auto" : "none",
+                          cursor: "pointer",
                         }}
                         onClick={handlePlusClick}
                       >
-                        <Plus size={24} className="text-white/40 group-hover:text-white transition-all duration-200" />
+                        <Plus
+                          size={24}
+                          className="text-white/40 group-hover:text-white transition-all duration-200"
+                        />
                       </motion.div>
 
                       {/* Toolbar content - hidden when collapsed with zero width but still in DOM */}
-                      <motion.div 
+                      <motion.div
                         className="flex items-center justify-center"
                         initial={false}
                         animate={{
                           opacity: isToolbarCollapsed ? 0 : 1,
-                          width: isToolbarCollapsed ? 40 : 'auto',
+                          width: isToolbarCollapsed ? 40 : "auto",
                         }}
                         transition={{ duration: 0.15 }}
                         style={{
-                          pointerEvents: isToolbarCollapsed ? 'none' : 'auto',
-                          overflow: 'hidden'
+                          pointerEvents: isToolbarCollapsed ? "none" : "auto",
+                          overflow: "hidden",
                         }}
                       >
-                        <div 
+                        <div
                           className="flex items-center justify-center w-8 h-8 hover:bg-white/10 rounded-full group cursor-move"
                           onPointerDown={(e) => {
                             e.stopPropagation();
@@ -1112,12 +1221,12 @@ export default function HtmlPreview({
                             toggleToolbarCollapse(e);
                           }}
                         >
-                          <GripVertical 
-                            size={18} 
+                          <GripVertical
+                            size={18}
                             className="text-white/70 group-hover:text-white"
                           />
                         </div>
-                        
+
                         {showCode && (
                           <button
                             onClick={(e) => {

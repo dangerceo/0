@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+preserve-animations-layout: When modifying code, do not change existing animation parameters or layout unless specifically requested.

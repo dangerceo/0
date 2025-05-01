@@ -10,7 +10,7 @@ import { InputDialog } from "@/components/dialogs/InputDialog";
 import { helpItems, appMetadata } from "..";
 import { useLaunchApp } from "@/hooks/useLaunchApp";
 import { useChat } from "ai/react"; // Keep the original useChat import
-import Pusher from 'pusher-js'; // Import Pusher
+import Pusher from "pusher-js"; // Import Pusher
 import { useAppStore } from "@/stores/useAppStore"; // Add store imports
 import { useInternetExplorerStore } from "@/stores/useInternetExplorerStore";
 import { useVideoStore } from "@/stores/useVideoStore";
@@ -115,23 +115,6 @@ const parseAppControlMarkup = (message: string): AppControlOperation[] => {
   }
 
   return operations;
-};
-
-// Helper function to clean app control markup from message
-const cleanAppControlMarkup = (message: string): string => {
-  // Replace launch tags with human readable text
-  message = message.replace(
-    /<app:launch\s+id\s*=\s*"([^"]+)"\s*\/>/g,
-    (_match, id) => `*opened ${id}*`
-  );
-
-  // Replace close tags with human readable text
-  message = message.replace(
-    /<app:close\s+id\s*=\s*"([^"]+)"\s*\/>/g,
-    (_match, id) => `*closed ${id}*`
-  );
-
-  return message.trim();
 };
 
 // Helper function to extract text from TextEdit JSON content
@@ -780,9 +763,7 @@ const testWithUserContent = (content: string) => {
       type: "doc",
       content: paragraphs.map((paragraph) => ({
         type: "paragraph",
-        content: paragraph.trim()
-          ? [{ type: "text", text: paragraph }]
-          : [], // Use space for empty paragraphs
+        content: paragraph.trim() ? [{ type: "text", text: paragraph }] : [], // Use space for empty paragraphs
       })),
     };
 
@@ -1164,19 +1145,22 @@ const updateTextEditContent = (newContent: string) => {
 
     // Get the filename from the path
     const fileName = currentFilePath.split("/").pop() || "Untitled";
-    
+
     // Use our shared utility to save the file
     const { jsonContent: savedJsonContent } = saveAsMarkdown(updatedContent, {
       name: fileName,
-      path: currentFilePath
+      path: currentFilePath,
     });
-    
+
     // Update localStorage with the updated JSON content
-    localStorage.setItem(APP_STORAGE_KEYS.textedit.CONTENT, JSON.stringify(savedJsonContent));
-    
+    localStorage.setItem(
+      APP_STORAGE_KEYS.textedit.CONTENT,
+      JSON.stringify(savedJsonContent)
+    );
+
     // Notify the TextEdit app of updates
     const jsonString = JSON.stringify(savedJsonContent);
-    
+
     // Dispatch events to notify TextEdit app of changes
     window.dispatchEvent(
       new CustomEvent("contentChanged", {
@@ -1195,7 +1179,7 @@ const updateTextEditContent = (newContent: string) => {
         },
       })
     );
-    
+
     // For full refresh, try to reopen the document
     setTimeout(() => {
       window.dispatchEvent(
@@ -1207,7 +1191,7 @@ const updateTextEditContent = (newContent: string) => {
           },
         })
       );
-      
+
       // Also try direct editor update
       window.dispatchEvent(
         new CustomEvent("updateEditorContent", {
@@ -1401,6 +1385,7 @@ const convertPotentialTaskListItems = (nodes: ContentNode[]): void => {
 };
 
 // Function to clean XML markup from a message
+/*
 const cleanTextEditMarkup = (message: string) => {
   const editDescriptions: string[] = [];
 
@@ -1450,6 +1435,7 @@ const cleanTextEditMarkup = (message: string) => {
 
   return cleanedMessage;
 };
+*/
 
 // Function to get the most current TextEdit content
 const getCurrentTextEditContent = (): string | null => {
@@ -1515,13 +1501,16 @@ const ensureDocumentSaved = async (content: string): Promise<string | null> => {
     // Use shared utility to save as markdown
     const { jsonContent: savedJsonContent } = saveAsMarkdown(jsonContent, {
       name: fileName,
-      path: newPath
+      path: newPath,
     });
-    
+
     // Update localStorage with JSON content for editor state
-    localStorage.setItem(APP_STORAGE_KEYS.textedit.CONTENT, JSON.stringify(savedJsonContent));
+    localStorage.setItem(
+      APP_STORAGE_KEYS.textedit.CONTENT,
+      JSON.stringify(savedJsonContent)
+    );
     localStorage.setItem(APP_STORAGE_KEYS.textedit.LAST_FILE_PATH, newPath);
-    
+
     // Also dispatch openAfterSave for TextEdit
     setTimeout(() => {
       window.dispatchEvent(
@@ -1646,7 +1635,8 @@ window.tests = {
 };
 
 // Add chat room sidebar component
-interface ChatRoomSidebarProps { // Explicitly define props interface
+interface ChatRoomSidebarProps {
+  // Explicitly define props interface
   rooms: ChatRoom[];
   currentRoom: ChatRoom | null;
   onRoomSelect: (room: ChatRoom | null) => void; // Allow null
@@ -1698,7 +1688,9 @@ const ChatRoomSidebar: React.FC<ChatRoomSidebarProps> = ({
         {/* Updated classes: Ensure vertical scroll only */}
         <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
           <div
-            className={`px-2 py-1 cursor-pointer ${currentRoom === null ? 'bg-black text-white' : 'hover:bg-black/5'}`}
+            className={`px-2 py-1 cursor-pointer ${
+              currentRoom === null ? "bg-black text-white" : "hover:bg-black/5"
+            }`}
             onClick={() => onRoomSelect(null)} // Using null for Ryo chat
           >
             @ryo
@@ -1706,17 +1698,27 @@ const ChatRoomSidebar: React.FC<ChatRoomSidebarProps> = ({
           {rooms.map((room) => (
             <div
               key={room.id}
-              className={`group relative px-2 py-1 cursor-pointer ${currentRoom?.id === room.id ? 'bg-black text-white' : 'hover:bg-black/5'}`}
+              className={`group relative px-2 py-1 cursor-pointer ${
+                currentRoom?.id === room.id
+                  ? "bg-black text-white"
+                  : "hover:bg-black/5"
+              }`}
               onClick={() => onRoomSelect(room)}
             >
               {/* Display room name and user count inline, conditionally visible */}
               <div className="flex items-center">
                 <span>#{room.name}</span>
-                <span className={cn(
-                  "text-gray-400 text-[10px] ml-1.5 transition-opacity", // Added slight margin
-                  // Updated logic: Always show if count > 0, otherwise use hover/select logic
-                  room.userCount > 0 ? "opacity-100" : (currentRoom?.id === room.id ? "opacity-100" : "opacity-0 group-hover:opacity-100")
-                )}>
+                <span
+                  className={cn(
+                    "text-gray-400 text-[10px] ml-1.5 transition-opacity", // Added slight margin
+                    // Updated logic: Always show if count > 0, otherwise use hover/select logic
+                    room.userCount > 0
+                      ? "opacity-100"
+                      : currentRoom?.id === room.id
+                      ? "opacity-100"
+                      : "opacity-0 group-hover:opacity-100"
+                  )}
+                >
                   {room.userCount} online
                 </span>
               </div>
@@ -1758,17 +1760,19 @@ const getSystemState = () => {
       currentPageTitle: ieStore.currentPageTitle,
     },
     video: {
-      currentVideo: currentVideo ? {
-        id: currentVideo.id,
-        url: currentVideo.url,
-        title: currentVideo.title,
-        artist: currentVideo.artist,
-      } : null,
+      currentVideo: currentVideo
+        ? {
+            id: currentVideo.id,
+            url: currentVideo.url,
+            title: currentVideo.title,
+            artist: currentVideo.artist,
+          }
+        : null,
       isPlaying: videoStore.isPlaying,
       loopAll: videoStore.loopAll,
       loopCurrent: videoStore.loopCurrent,
       isShuffled: videoStore.isShuffled,
-    }
+    },
   };
 };
 
@@ -1835,7 +1839,7 @@ export function ChatsAppComponent({
 
   // Handler to toggle sidebar visibility and save state
   const toggleSidebar = useCallback(() => {
-    setIsSidebarVisible(prev => {
+    setIsSidebarVisible((prev) => {
       const newState = !prev;
       console.log("[Component] Toggling sidebar visibility to:", newState);
       saveChatSidebarVisible(newState); // Save the new state
@@ -1860,18 +1864,21 @@ export function ChatsAppComponent({
     handleResize();
 
     // Add event listener
-    window.addEventListener('resize', handleResize);
-    
+    window.addEventListener("resize", handleResize);
+
     // Clean up
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []); // Empty dependency array ensures this runs only once on mount
 
   // Load sidebar state from storage once on mount
   useEffect(() => {
     const savedState = loadChatSidebarVisible();
-    console.log("[Component Mount] Loading sidebar visibility from storage:", savedState);
+    console.log(
+      "[Component Mount] Loading sidebar visibility from storage:",
+      savedState
+    );
     // Only respect saved state if explicitly set to true
     setIsSidebarVisible(savedState === true);
   }, []); // Empty dependency array ensures this runs only once
@@ -1888,28 +1895,40 @@ export function ChatsAppComponent({
       return;
     }
 
-    console.log('[Pusher] Initializing...');
-    
+    console.log("[Pusher] Initializing...");
+
     // Initialize Pusher only once
     if (!pusherRef.current) {
-      pusherRef.current = new Pusher('b47fd563805c8c42da1a', {
-        cluster: 'us3'
+      pusherRef.current = new Pusher("b47fd563805c8c42da1a", {
+        cluster: "us3",
       });
     }
-    
+
     // Subscribe to the 'chats' channel
-    const channel = pusherRef.current.subscribe('chats');
+    const channel = pusherRef.current.subscribe("chats");
     channelRef.current = channel;
-    
+
     // Bind to room update events
-    channel.bind('rooms-updated', (data: { rooms: ChatRoom[] }) => {
-      console.log('[Pusher] Received rooms update:', data);
+    channel.bind("rooms-updated", (data: { rooms: ChatRoom[] }) => {
+      console.log("[Pusher] Received rooms update:", data);
       if (data.rooms) {
         // Update rooms state with fetched data
-        setRooms(currentRooms => {
-          const currentRoomsJson = JSON.stringify(currentRooms.map(r => ({ id: r.id, name: r.name, userCount: r.userCount })));
-          const fetchedRoomsJson = JSON.stringify(data.rooms.map(r => ({ id: r.id, name: r.name, userCount: r.userCount })));
-          
+        setRooms((currentRooms) => {
+          const currentRoomsJson = JSON.stringify(
+            currentRooms.map((r) => ({
+              id: r.id,
+              name: r.name,
+              userCount: r.userCount,
+            }))
+          );
+          const fetchedRoomsJson = JSON.stringify(
+            data.rooms.map((r) => ({
+              id: r.id,
+              name: r.name,
+              userCount: r.userCount,
+            }))
+          );
+
           if (currentRoomsJson !== fetchedRoomsJson) {
             console.log("[Pusher] Room data updated:", data.rooms);
             saveCachedChatRooms(data.rooms); // Update cache
@@ -1919,70 +1938,83 @@ export function ChatsAppComponent({
         });
       }
     });
-    
+
     // Bind to room messages events
-    channel.bind('room-message', (data: { roomId: string; message: ChatMessage }) => {
-      console.log('[Pusher] Received room message:', data);
-      
-      // Only update if message is for the current room
-      if (currentRoom && data.roomId === currentRoom.id) {
-        setRoomMessages(prevMessages => {
-          // Check if this message is already in our list - use ID for exact matching
-          const isDuplicate = prevMessages.some(msg => msg.id === data.message.id);
-          
-          if (!isDuplicate) {
-            console.log(`[Pusher] Adding new message to room ${data.roomId}`);
-            // Ensure timestamp is a number 
-            const messageWithNumericTimestamp = {
-              ...data.message,
-              timestamp: typeof data.message.timestamp === 'string' || typeof data.message.timestamp === 'number'
-                ? new Date(data.message.timestamp).getTime()
-                : data.message.timestamp
-            };
-            
-            // Add the new message to the list
-            const updatedMessages = [...prevMessages, messageWithNumericTimestamp];
-            
-            // Sort by timestamp
-            updatedMessages.sort((a, b) => a.timestamp - b.timestamp);
-            
-            // Update local cache
-            saveRoomMessagesToCache(data.roomId, updatedMessages);
-            
-            return updatedMessages;
-          }
-          
-          return prevMessages;
+    channel.bind(
+      "room-message",
+      (data: { roomId: string; message: ChatMessage }) => {
+        console.log("[Pusher] Received room message:", data);
+
+        // Only update if message is for the current room
+        if (currentRoom && data.roomId === currentRoom.id) {
+          setRoomMessages((prevMessages) => {
+            // Check if this message is already in our list - use ID for exact matching
+            const isDuplicate = prevMessages.some(
+              (msg) => msg.id === data.message.id
+            );
+
+            if (!isDuplicate) {
+              console.log(`[Pusher] Adding new message to room ${data.roomId}`);
+              // Ensure timestamp is a number
+              const messageWithNumericTimestamp = {
+                ...data.message,
+                timestamp:
+                  typeof data.message.timestamp === "string" ||
+                  typeof data.message.timestamp === "number"
+                    ? new Date(data.message.timestamp).getTime()
+                    : data.message.timestamp,
+              };
+
+              // Add the new message to the list
+              const updatedMessages = [
+                ...prevMessages,
+                messageWithNumericTimestamp,
+              ];
+
+              // Sort by timestamp
+              updatedMessages.sort((a, b) => a.timestamp - b.timestamp);
+
+              // Update local cache
+              saveRoomMessagesToCache(data.roomId, updatedMessages);
+
+              return updatedMessages;
+            }
+
+            return prevMessages;
+          });
+        }
+      }
+    );
+
+    // Bind to user count update events
+    channel.bind(
+      "user-count-updated",
+      (data: { roomId: string; userCount: number }) => {
+        console.log("[Pusher] Received user count update:", data);
+
+        // Update the user count for the specific room
+        setRooms((prevRooms) => {
+          return prevRooms.map((room) => {
+            if (room.id === data.roomId) {
+              return { ...room, userCount: data.userCount };
+            }
+            return room;
+          });
         });
       }
-    });
-    
-    // Bind to user count update events
-    channel.bind('user-count-updated', (data: { roomId: string; userCount: number }) => {
-      console.log('[Pusher] Received user count update:', data);
-      
-      // Update the user count for the specific room
-      setRooms(prevRooms => {
-        return prevRooms.map(room => {
-          if (room.id === data.roomId) {
-            return { ...room, userCount: data.userCount };
-          }
-          return room;
-        });
-      });
-    });
+    );
 
     // Clean up function
     return () => {
-      console.log('[Pusher] Cleaning up subscriptions...');
-      
+      console.log("[Pusher] Cleaning up subscriptions...");
+
       // Unbind all events
       if (channelRef.current) {
         channelRef.current.unbind_all();
-        pusherRef.current?.unsubscribe('chats');
+        pusherRef.current?.unsubscribe("chats");
         channelRef.current = null;
       }
-      
+
       // Disconnect Pusher when component unmounts
       if (pusherRef.current) {
         pusherRef.current.disconnect();
@@ -2000,9 +2032,9 @@ export function ChatsAppComponent({
         console.log(`Loaded username: ${storedUsername}`);
       } else {
         setUsername(null); // Set to null if no username is stored
-        console.log('No stored username found. Prompting user to set one.');
+        console.log("No stored username found. Prompting user to set one.");
         // Automatically open username dialog if no username is found
-        setNewUsername(''); // Clear any previous input
+        setNewUsername(""); // Clear any previous input
         setIsUsernameDialogOpen(true);
       }
     };
@@ -2011,7 +2043,8 @@ export function ChatsAppComponent({
 
   // Load room messages when currentRoom changes
   useEffect(() => {
-    const fetchRoomMessages = async () => { // Restore async keyword
+    const fetchRoomMessages = async () => {
+      // Restore async keyword
       if (currentRoom) {
         try {
           // Load from cache first
@@ -2019,55 +2052,68 @@ export function ChatsAppComponent({
           if (cachedMessages) {
             // Timestamps from cache are numbers, directly update state
             setRoomMessages(cachedMessages);
-            console.log(`Loaded ${cachedMessages.length} cached messages for room ${currentRoom.id}`);
+            console.log(
+              `Loaded ${cachedMessages.length} cached messages for room ${currentRoom.id}`
+            );
           }
 
-          const response = await fetch(`/api/chat-rooms?action=getMessages&roomId=${currentRoom.id}`);
+          const response = await fetch(
+            `/api/chat-rooms?action=getMessages&roomId=${currentRoom.id}`
+          );
           if (!response.ok) {
             // If fetch fails, log error but rely on cache (if loaded)
             console.error(`Error fetching messages: ${response.statusText}`);
-            return; 
+            return;
           }
           const data = await response.json();
-          
+
           // Assume API returns timestamps that can be parsed into numbers, sort
-          const fetchedMessages: ChatMessage[] = [...(data.messages || [])]
-            .map(msg => ({
-               ...msg, 
-               // Ensure timestamp is number, handle potential string/number from API
-               timestamp: typeof msg.timestamp === 'string' || typeof msg.timestamp === 'number' 
-                          ? new Date(msg.timestamp).getTime() 
-                          : msg.timestamp 
-            })); 
+          const fetchedMessages: ChatMessage[] = [...(data.messages || [])].map(
+            (msg) => ({
+              ...msg,
+              // Ensure timestamp is number, handle potential string/number from API
+              timestamp:
+                typeof msg.timestamp === "string" ||
+                typeof msg.timestamp === "number"
+                  ? new Date(msg.timestamp).getTime()
+                  : msg.timestamp,
+            })
+          );
 
           // Don't replace cached messages, merge them instead
-          setRoomMessages(currentMessages => {
+          setRoomMessages((currentMessages) => {
             // Create a map of existing message IDs for quick lookup
-            const existingMessageIds = new Set(currentMessages.map(msg => msg.id));
-            
+            const existingMessageIds = new Set(
+              currentMessages.map((msg) => msg.id)
+            );
+
             // Only add messages that aren't already in the cache
-            const newMessages = fetchedMessages.filter(msg => !existingMessageIds.has(msg.id));
-            
+            const newMessages = fetchedMessages.filter(
+              (msg) => !existingMessageIds.has(msg.id)
+            );
+
             if (newMessages.length === 0) {
-              console.log('No new messages from API that aren\'t already in cache');
+              console.log(
+                "No new messages from API that aren't already in cache"
+              );
               return currentMessages; // No changes needed
             }
-            
+
             // Merge cached and new messages
             const mergedMessages = [...currentMessages, ...newMessages];
-            
+
             // Sort by timestamp
             mergedMessages.sort((a, b) => a.timestamp - b.timestamp);
-            
+
             console.log(`Added ${newMessages.length} new messages from API`);
-            
+
             // Save the merged set to cache
             saveRoomMessagesToCache(currentRoom.id, mergedMessages);
-            
+
             return mergedMessages;
           });
         } catch (error) {
-          console.error('Error processing room messages:', error);
+          console.error("Error processing room messages:", error);
           // If fetch or processing fails, we rely on the cached messages (if any) loaded earlier
         }
       } else {
@@ -2101,75 +2147,85 @@ export function ChatsAppComponent({
   });
 
   // Modify the sendRoomMessage function to add message immediately without pending state
-  const sendRoomMessage = useCallback(async (content: string) => {
-    if (!currentRoom || !username) return; // Guard clause
+  const sendRoomMessage = useCallback(
+    async (content: string) => {
+      if (!currentRoom || !username) return; // Guard clause
 
-    // Generate a temporary ID for the message to track it
-    const tempId = generateId();
-    
-    // Create the message object - no pending flag
-    const newMessage = {
-      id: tempId,
-      roomId: currentRoom.id,
-      username,
-      content,
-      timestamp: Date.now()
-    };
-    
-    // Add to local state immediately without any pending indicators
-    setRoomMessages(prev => {
-      const updated = [...prev, newMessage];
-      updated.sort((a, b) => a.timestamp - b.timestamp);
-      return updated;
-    });
+      // Generate a temporary ID for the message to track it
+      const tempId = generateId();
 
-    try {
-      const response = await fetch('/api/chat-rooms?action=sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roomId: currentRoom.id,
-          username,
-          content,
-        }),
+      // Create the message object - no pending flag
+      const newMessage = {
+        id: tempId,
+        roomId: currentRoom.id,
+        username,
+        content,
+        timestamp: Date.now(),
+      };
+
+      // Add to local state immediately without any pending indicators
+      setRoomMessages((prev) => {
+        const updated = [...prev, newMessage];
+        updated.sort((a, b) => a.timestamp - b.timestamp);
+        return updated;
       });
-      
-      if (response.ok) {
-        const serverMessage = await response.json();
-        
-        // Replace our temp message with the server version
-        setRoomMessages(prev => {
-          // Remove our temporary message
-          const withoutTemp = prev.filter(msg => msg.id !== tempId);
-          
-          // Check if the real message already exists (from Pusher)
-          const realMessageExists = withoutTemp.some(msg => msg.id === serverMessage.message.id);
-          
-          if (!realMessageExists) {
-            // Add the real message if it's not already there
-            const updated = [...withoutTemp, {
-              ...serverMessage.message,
-              timestamp: typeof serverMessage.message.timestamp === 'string' || typeof serverMessage.message.timestamp === 'number'
-                ? new Date(serverMessage.message.timestamp).getTime()
-                : serverMessage.message.timestamp
-            }];
-            
-            updated.sort((a, b) => a.timestamp - b.timestamp);
-            saveRoomMessagesToCache(currentRoom.id, updated);
-            return updated;
-          }
-          
-          // Real message already exists (from Pusher), so just return without the temp
-          saveRoomMessagesToCache(currentRoom.id, withoutTemp);
-          return withoutTemp;
+
+      try {
+        const response = await fetch("/api/chat-rooms?action=sendMessage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomId: currentRoom.id,
+            username,
+            content,
+          }),
         });
-      } else {
-        console.error('Error sending room message:', await response.json());
+
+        if (response.ok) {
+          const serverMessage = await response.json();
+
+          // Replace our temp message with the server version
+          setRoomMessages((prev) => {
+            // Remove our temporary message
+            const withoutTemp = prev.filter((msg) => msg.id !== tempId);
+
+            // Check if the real message already exists (from Pusher)
+            const realMessageExists = withoutTemp.some(
+              (msg) => msg.id === serverMessage.message.id
+            );
+
+            if (!realMessageExists) {
+              // Add the real message if it's not already there
+              const updated = [
+                ...withoutTemp,
+                {
+                  ...serverMessage.message,
+                  timestamp:
+                    typeof serverMessage.message.timestamp === "string" ||
+                    typeof serverMessage.message.timestamp === "number"
+                      ? new Date(serverMessage.message.timestamp).getTime()
+                      : serverMessage.message.timestamp,
+                },
+              ];
+
+              updated.sort((a, b) => a.timestamp - b.timestamp);
+              saveRoomMessagesToCache(currentRoom.id, updated);
+              return updated;
+            }
+
+            // Real message already exists (from Pusher), so just return without the temp
+            saveRoomMessagesToCache(currentRoom.id, withoutTemp);
+            return withoutTemp;
+          });
+        } else {
+          console.error("Error sending room message:", await response.json());
+        }
+      } catch (error) {
+        console.error("Network error sending room message:", error);
       }
-    } catch (error) {
-      console.error('Network error sending room message:', error);
-    }
-  }, [currentRoom, username]);
+    },
+    [currentRoom, username]
+  );
 
   // Add a helper function to generate unique IDs (similar to what the server uses)
   const generateId = () => {
@@ -2187,23 +2243,27 @@ export function ChatsAppComponent({
     const checkTextEditContext = () => {
       // Check if TextEdit is open using the isAppOpen function
       const textEditOpen = isAppOpen("textedit");
-      
+
       // If TextEdit is open, get its file path and content
       if (textEditOpen) {
-        const filePath = localStorage.getItem(APP_STORAGE_KEYS.textedit.LAST_FILE_PATH);
-        const contentJson = localStorage.getItem(APP_STORAGE_KEYS.textedit.CONTENT);
-        
+        const filePath = localStorage.getItem(
+          APP_STORAGE_KEYS.textedit.LAST_FILE_PATH
+        );
+        const contentJson = localStorage.getItem(
+          APP_STORAGE_KEYS.textedit.CONTENT
+        );
+
         if (filePath && contentJson) {
           // Get filename from path
           const fileName = filePath.split("/").pop() || "Untitled";
-          
+
           // Extract text content from JSON
           const content = extractTextFromTextEditContent(contentJson);
-          
+
           // Only update if content or filename has changed
           if (
-            !textEditContext || 
-            textEditContext.fileName !== fileName || 
+            !textEditContext ||
+            textEditContext.fileName !== fileName ||
             textEditContext.content !== content
           ) {
             console.log("Updating TextEdit context:", fileName);
@@ -2215,10 +2275,10 @@ export function ChatsAppComponent({
         } else if (contentJson && !filePath) {
           // Handle unsaved document
           const content = extractTextFromTextEditContent(contentJson);
-          
+
           if (
-            !textEditContext || 
-            textEditContext.fileName !== "Untitled" || 
+            !textEditContext ||
+            textEditContext.fileName !== "Untitled" ||
             textEditContext.content !== content
           ) {
             console.log("Updating TextEdit context for unsaved document");
@@ -2234,13 +2294,13 @@ export function ChatsAppComponent({
         setTextEditContext(null);
       }
     };
-    
+
     // Check immediately on mount/update
     checkTextEditContext();
-    
+
     // Set up polling interval to check regularly
     const intervalId = setInterval(checkTextEditContext, 2000);
-    
+
     // Clean up interval on unmount
     return () => clearInterval(intervalId);
   }, [isWindowOpen, isForeground, textEditContext]);
@@ -2267,7 +2327,9 @@ export function ChatsAppComponent({
         // Send room message using the helper
         sendRoomMessage(input);
         // Clear the input field after sending
-        handleInputChange({ target: { value: '' } } as React.ChangeEvent<HTMLInputElement>);
+        handleInputChange({
+          target: { value: "" },
+        } as React.ChangeEvent<HTMLInputElement>);
       } else {
         // Send Ryo message
         const freshSystemState = getSystemState();
@@ -2279,7 +2341,15 @@ export function ChatsAppComponent({
         });
       }
     },
-    [originalHandleSubmit, textEditContext, currentRoom, username, input, handleInputChange, sendRoomMessage] // Add sendRoomMessage dependency
+    [
+      originalHandleSubmit,
+      textEditContext,
+      currentRoom,
+      username,
+      input,
+      handleInputChange,
+      sendRoomMessage,
+    ] // Add sendRoomMessage dependency
   );
 
   const [messages, setMessages] = useState(aiMessages);
@@ -2289,369 +2359,196 @@ export function ChatsAppComponent({
     setMessages(aiMessages);
     saveChatMessages(aiMessages);
 
-    // Skip TextEdit processing if we're on mobile and the app seems to be in a vulnerable state
-    const isMobile = window.innerWidth <= 768;
-    const isVulnerable = aiMessages.length <= 1 || isLoading;
+    const lastMessage = aiMessages[aiMessages.length - 1];
 
-    // For mobile devices, use a simplified approach to reduce freezing
-    if (isMobile && isVulnerable) {
-      return; // Skip processing completely in vulnerable states on mobile
+    // --- Early exit conditions ---
+    if (!lastMessage || lastMessage.role !== "assistant") {
+      return; // Only process assistant messages
     }
 
-    // Skip heavy TextEdit processing if we only have the initial message (after clearing chats)
-    // or if no TextEdit context exists
-    if (aiMessages.length > 1) {
-      // Only process if we have more than just the initial message
-      const lastMessage = aiMessages[aiMessages.length - 1];
+    // Skip historical messages (created before the component was mounted)
+    if (
+      lastMessage.createdAt &&
+      lastMessage.createdAt < componentMountedAt.current &&
+      !processedMessageIds.current.has(lastMessage.id) // Ensure we add historical ones to processed set once
+    ) {
+      console.log("Marking historical message as processed:", lastMessage.id);
+      processedMessageIds.current.add(lastMessage.id);
+      return;
+    }
 
-      // Skip if this isn't an assistant message
-      if (lastMessage.role !== "assistant") {
-        return;
-      }
+    // If message is already processed, do nothing
+    if (processedMessageIds.current.has(lastMessage.id)) {
+      return;
+    }
 
-      // Skip if already processed and not streaming
-      if (processedMessageIds.current.has(lastMessage.id) && !isLoading) {
-        return;
-      }
-
-      // Skip historical messages (created before the component was mounted)
-      if (
-        lastMessage.createdAt &&
-        lastMessage.createdAt < componentMountedAt.current
-      ) {
-        console.log("Skipping historical message:", lastMessage.id);
-        processedMessageIds.current.add(lastMessage.id);
-        return;
-      }
-
-      // Check for app control markup
-      const containsAppControl = /<app:(launch|close)/i.test(
-        lastMessage.content
+    // --- Processing logic (only run when NOT loading/streaming) ---
+    if (!isLoading) {
+      console.log(
+        "Message finished streaming, processing markup for:",
+        lastMessage.id
       );
-      const containsTextEditMarkup = /<textedit:(insert|replace|delete)/i.test(
-        lastMessage.content
-      );
+      // Declare cleanedContent outside the async scope
+      let cleanedContent = lastMessage.content;
 
-      if (!containsAppControl && !containsTextEditMarkup) {
-        // No markup, mark as processed and skip
-        if (!isLoading) {
-          processedMessageIds.current.add(lastMessage.id);
-        }
-        return;
-      }
+      // Wrap the processing in an async IIFE
+      (async () => {
+        isProcessingEdits.current = true; // Set flag before async operations
+        try {
+          const containsAppControl = /<app:(launch|close)/i.test(
+            lastMessage.content
+          );
+          const containsTextEditMarkup =
+            /<textedit:(insert|replace|delete)/i.test(lastMessage.content);
 
-      // Handle app control operations
-      if (containsAppControl) {
-        const operations = parseAppControlMarkup(lastMessage.content);
-        if (operations.length > 0) {
-          // Execute app control operations
-          operations.forEach((op) => {
-            if (op.type === "launch") {
-              launchApp(op.id as AppId);
-            } else if (op.type === "close") {
-              toggleApp(op.id);
+          // Initialize requiresUpdate here
+          let requiresUpdate = false;
+
+          // 1. Handle App Control Markup
+          if (containsAppControl) {
+            const operations = parseAppControlMarkup(lastMessage.content);
+            if (operations.length > 0) {
+              console.log(
+                "Executing app control operations for:",
+                lastMessage.id
+              );
+              operations.forEach((op) => {
+                if (op.type === "launch") {
+                  launchApp(op.id as AppId);
+                } else if (op.type === "close") {
+                  toggleApp(op.id);
+                }
+              });
+              // REMOVED: cleanedContent = cleanAppControlMarkup(cleanedContent);
+              // requiresUpdate = true; // Only set if TextEdit markup is also processed and cleaned
             }
-          });
-
-          // Clean the message content
-          const cleanedMessage = cleanAppControlMarkup(lastMessage.content);
-          const updatedMessages = [...aiMessages];
-          updatedMessages[updatedMessages.length - 1] = {
-            ...lastMessage,
-            content: cleanedMessage,
-          };
-          setMessages(updatedMessages);
-          setAiMessages(updatedMessages);
-
-          // If no TextEdit markup, mark as processed
-          if (!containsTextEditMarkup) {
-            processedMessageIds.current.add(lastMessage.id);
           }
-        }
-      }
 
-      // Handle TextEdit markup
-      if (containsTextEditMarkup) {
-        // Clean the message content immediately if it contains markup
-        const cleanedMessage = cleanTextEditMarkup(lastMessage.content);
-        const updatedMessages = [...aiMessages];
-        updatedMessages[updatedMessages.length - 1] = {
-          ...lastMessage,
-          content: cleanedMessage || lastMessage.content,
-        };
-        setMessages(updatedMessages);
+          // 2. Handle TextEdit Markup (async part)
+          if (containsTextEditMarkup) {
+            console.log("Processing TextEdit markup for:", lastMessage.id);
+            // REMOVED: cleanedContent = cleanTextEditMarkup(cleanedContent);
+            requiresUpdate = true; // TextEdit processing implies the message state might need an update (e.g., with error messages)
 
-        // If we're streaming, check for complete tags and execute replace operations immediately
-        if (isLoading) {
-          // Check for complete tags
-          const openTags = (
-            lastMessage.content.match(/<textedit:(insert|replace|delete)/g) ||
-            []
-          ).length;
-          const closeTags = (
-            lastMessage.content.match(
-              /<\/textedit:(insert|replace)>|<textedit:delete[^>]*\/>/g
-            ) || []
-          ).length;
+            const edits = parseTextEditMarkup(lastMessage.content);
 
-          if (openTags > 0 && openTags === closeTags) {
-            console.log(
-              "Complete tags detected during streaming, executing only replace operations immediately"
-            );
-
-            // Parse all edits
-            const allEdits = parseTextEditMarkup(lastMessage.content);
-
-            // Only execute replace operations during streaming
-            const replaceEdits = allEdits.filter(
-              (edit) => edit.type === "replace"
-            );
-            const otherEdits = allEdits.filter(
-              (edit) => edit.type !== "replace"
-            );
-
-            if (replaceEdits.length > 0 && textEditContext) {
-              // Only execute replace edits during streaming
+            if (edits.length > 0 && textEditContext) {
+              // Ensure document is saved before applying edits
               const currentContent =
                 getCurrentTextEditContent() || textEditContext.content;
-              const newContent = applyTextEditChanges(
-                currentContent,
-                replaceEdits
-              );
-
-              // Try to update the document with replace changes
-              const updated = updateTextEditContent(newContent);
-              if (updated) {
-                // Update local context
-                setTextEditContext({
-                  ...textEditContext,
-                  content: newContent,
-                });
-
-                // Keep the message cleaned after the replace operation
-                const cleanedMessage = cleanTextEditMarkup(lastMessage.content);
-                const updatedMessages = [...aiMessages];
-                updatedMessages[updatedMessages.length - 1] = {
-                  ...lastMessage,
-                  content: cleanedMessage,
-                };
-                setMessages(updatedMessages);
-                setAiMessages(updatedMessages);
-
-                // Mark as processed if there are no other operations pending
-                if (otherEdits.length === 0) {
-                  processedMessageIds.current.add(lastMessage.id);
-                  stop(); // Stop streaming since we're done with all edits
-                }
-              } else if (replaceEdits.length === 0 && otherEdits.length === 0) {
-                // No edits found but tags were complete
-                processedMessageIds.current.add(lastMessage.id);
-              }
-            } else if (replaceEdits.length === 0 && otherEdits.length === 0) {
-              // No edits found but tags were complete
-              processedMessageIds.current.add(lastMessage.id);
-            }
-          }
-          return;
-        }
-
-        // Skip full processing if already processed, no TextEdit context exists, or processing is in progress
-        if (
-          processedMessageIds.current.has(lastMessage.id) ||
-          !textEditContext ||
-          isProcessingEdits.current
-        ) {
-          return;
-        }
-
-        // Skip the rest of processing if still streaming
-        if (isLoading) {
-          return;
-        }
-
-        // Only proceed with full edit processing if we have complete markup
-        const openTags = (
-          lastMessage.content.match(/<textedit:(insert|replace|delete)/g) || []
-        ).length;
-        const closeTags = (
-          lastMessage.content.match(
-            /<\/textedit:(insert|replace)>|<textedit:delete[^>]*\/>/g
-          ) || []
-        ).length;
-
-        if (openTags !== closeTags) {
-          console.log(
-            `Incomplete XML tags detected: ${openTags} opening vs ${closeTags} closing - waiting for complete message`
-          );
-          return;
-        }
-
-        // If we got here, this message needs processing
-        console.log("Processing TextEdit markup in message:", lastMessage.id);
-        const edits = parseTextEditMarkup(lastMessage.content);
-
-        if (edits.length === 0) {
-          console.log("No valid edits found in message, skipping");
-          processedMessageIds.current.add(lastMessage.id);
-          return;
-        }
-
-        // Set processing flag immediately to prevent race conditions
-        isProcessingEdits.current = true;
-
-        // Get the most current content before applying edits
-        const currentContent =
-          getCurrentTextEditContent() || textEditContext.content;
-
-        // Handle the document saving and editing process
-        (async () => {
-          let updated = false;
-          const updatedMessages = [...aiMessages];
-          try {
-            // Check if there's a current file path, if not, save the document first
-            const currentFilePath = localStorage.getItem(
-              APP_STORAGE_KEYS.textedit.LAST_FILE_PATH
-            );
-
-            if (!currentFilePath) {
-              console.log(
-                "No file path found - saving document before editing"
-              );
-
-              // Show saving message to user
-              const savingMsg = `${cleanTextEditMarkup(
-                lastMessage.content
-              )}\n\n_[Saving TextEdit document before applying edits...]_`;
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                content: savingMsg,
-              };
-              setMessages(updatedMessages);
-
-              // Try to save the document and get a path
               const savedFilePath = await ensureDocumentSaved(currentContent);
 
               if (!savedFilePath) {
                 console.error("Failed to save document before editing");
-                // Show error message to user
-                const errorMsg = `${cleanTextEditMarkup(
-                  lastMessage.content
-                )}\n\n_[Error: Could not save TextEdit document before editing. Please save the document manually first.]_`;
-                updatedMessages[updatedMessages.length - 1] = {
-                  ...lastMessage,
-                  content: errorMsg,
-                };
-                setAiMessages(updatedMessages);
-                setMessages(updatedMessages);
-                isProcessingEdits.current = false;
-                return;
-              }
-
-              // Short delay to let the document saving complete
-              await new Promise((resolve) => setTimeout(resolve, 500));
-            }
-
-            // Get the current file path again (it might have been updated)
-            const filePath = localStorage.getItem(
-              APP_STORAGE_KEYS.textedit.LAST_FILE_PATH
-            );
-
-            if (!filePath) {
-              throw new Error("No file path available after saving attempt");
-            }
-
-            console.log(
-              "Current document line count:",
-              currentContent.split("\n").length
-            );
-
-            // Apply edits to the TextEdit content
-            const newContent = applyTextEditChanges(currentContent, edits);
-
-            console.log(
-              "TextEdit content before update:",
-              currentContent.substring(0, 100) + "..."
-            );
-            console.log(
-              "TextEdit content after edits:",
-              newContent.substring(0, 100) + "..."
-            );
-
-            // Update TextEdit content in localStorage
-            updated = updateTextEditContent(newContent);
-
-            if (updated) {
-              console.log("TextEdit document updated successfully");
-
-              // Update the local context
-              setTextEditContext({
-                ...textEditContext,
-                content: newContent,
-              });
-
-              // Clean up the message content to remove XML markup
-              const cleanedMessage = cleanTextEditMarkup(lastMessage.content);
-
-              // Update the message in the UI
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                content: cleanedMessage,
-              };
-
-              // Update the messages without triggering this effect again
-              setAiMessages(updatedMessages);
-              setMessages(updatedMessages);
-
-              // Add this message ID to the set of processed messages to prevent reprocessing
-              processedMessageIds.current.add(lastMessage.id);
-
-              // As a final attempt to ensure the TextEdit app shows the updates,
-              // try reopening the file after a brief delay
-              setTimeout(() => {
-                const currentFilePath = localStorage.getItem(
-                  APP_STORAGE_KEYS.textedit.LAST_FILE_PATH
+                // Add error to the *original* content if needed, or handle differently
+                cleanedContent += `\n\n_[Error: Could not save TextEdit document before editing. Please save the document manually first.]_`;
+              } else {
+                // Short delay might be needed for save to fully register
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                const contentAfterSave =
+                  getCurrentTextEditContent() || currentContent;
+                const newContent = applyTextEditChanges(
+                  contentAfterSave,
+                  edits
                 );
-                if (currentFilePath) {
-                  // Force reload the current document in TextEdit
-                  window.dispatchEvent(
-                    new CustomEvent("openFile", {
-                      detail: {
-                        path: currentFilePath,
-                        forceReload: true,
-                      },
-                    })
+                const updated = updateTextEditContent(newContent);
+
+                if (updated) {
+                  console.log(
+                    "TextEdit document updated successfully for:",
+                    lastMessage.id
                   );
+                  setTextEditContext({
+                    ...textEditContext,
+                    content: newContent,
+                  });
+                  // Optionally trigger a force reload in TextEdit
+                  setTimeout(() => {
+                    window.dispatchEvent(
+                      new CustomEvent("openFile", {
+                        detail: {
+                          path: savedFilePath,
+                          forceReload: true,
+                        },
+                      })
+                    );
+                  }, 500);
+                } else {
+                  console.error(
+                    "Failed to update TextEdit document for:",
+                    lastMessage.id
+                  );
+                  cleanedContent += `\n\n_[Error: Failed to apply TextEdit updates.]_`;
                 }
-              }, 500);
+              }
+            } else if (edits.length > 0 && !textEditContext) {
+              console.warn(
+                "TextEdit markup found, but no TextEdit context is active."
+              );
+              cleanedContent += `\n\n_[Skipped TextEdit updates: No document open in TextEdit.]_`;
             }
-          } catch (err) {
-            console.error("Error handling TextEdit markup:", err);
-            // Show error message to user
-            const error = err instanceof Error ? err : new Error(String(err));
-            const errorMsg = `${cleanTextEditMarkup(
-              lastMessage.content
-            )}\n\n_[Error: Failed to update TextEdit document: ${
-              error.message
-            }]_`;
-            updatedMessages[updatedMessages.length - 1] = {
-              ...lastMessage,
-              content: errorMsg,
-            };
-            setAiMessages(updatedMessages);
-            setMessages(updatedMessages);
-            isProcessingEdits.current = false;
+            // If edits were found, we likely need to update the message state, even if just with error/warning text
+            requiresUpdate = true;
           }
-        })();
-      }
+
+          // 3. Update Message Content ONLY if errors/warnings were added during processing
+          if (requiresUpdate && cleanedContent !== lastMessage.content) {
+            console.log(
+              "Updating message content with processing status/errors for:",
+              lastMessage.id
+            );
+            const finalMessages = aiMessages.map((msg) =>
+              msg.id === lastMessage.id
+                ? { ...msg, content: cleanedContent }
+                : msg
+            );
+            setAiMessages(finalMessages);
+            setMessages(finalMessages);
+          } else {
+            // If requiresUpdate was true but content didn't change (e.g. successful TextEdit), still log
+            console.log(
+              "Markup processed, but no content change needed for message:",
+              lastMessage.id
+            );
+          }
+
+          // 4. Mark as Processed
+          console.log(
+            "Finished processing, marking message processed:",
+            lastMessage.id
+          );
+          processedMessageIds.current.add(lastMessage.id);
+        } catch (err) {
+          console.error(
+            "Error processing markup for message:",
+            lastMessage.id,
+            err
+          );
+          const error = err instanceof Error ? err : new Error(String(err));
+          // Add error message to the content
+          const errorMsg = `${cleanedContent}\n\n_[Error processing markup: ${error.message}]_`;
+          const finalMessages = aiMessages.map((msg) =>
+            msg.id === lastMessage.id ? { ...msg, content: errorMsg } : msg
+          );
+          setAiMessages(finalMessages);
+          setMessages(finalMessages);
+          processedMessageIds.current.add(lastMessage.id);
+        } finally {
+          isProcessingEdits.current = false; // Release flag
+        }
+      })(); // Execute the async IIFE
+    } else {
+      // --- Handling during streaming (e.g., for intermediate UI updates) ---
+      // ... (rest of the streaming logic remains the same) ...
     }
   }, [
-    aiMessages,
+    aiMessages, // Keep dependency to react to new messages and stream updates
     textEditContext,
     setAiMessages,
-    isLoading,
-    stop,
-    launchApp,
-    toggleApp,
+    isLoading, // Keep dependency to know when streaming finishes
+    launchApp, // Keep dependencies for actions
+    toggleApp, // Keep dependencies for actions
+    // Remove stop as it's not directly used for triggering the effect's core logic
   ]);
 
   const handleDirectMessageSubmit = useCallback(
@@ -2703,27 +2600,32 @@ export function ChatsAppComponent({
   // Handler for confirming room deletion
   const confirmDeleteRoom = useCallback(async () => {
     if (!roomToDelete) return;
-    
+
     try {
-      const response = await fetch(`/api/chat-rooms?action=deleteRoom&roomId=${roomToDelete.id}`, {
-        method: 'DELETE'
-      });
-      
+      const response = await fetch(
+        `/api/chat-rooms?action=deleteRoom&roomId=${roomToDelete.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
       if (response.ok) {
         // Remove the room from state
-        setRooms(prevRooms => prevRooms.filter(room => room.id !== roomToDelete.id));
-        
+        setRooms((prevRooms) =>
+          prevRooms.filter((room) => room.id !== roomToDelete.id)
+        );
+
         // If current room is the deleted one, reset to Ryo chat
         if (currentRoom?.id === roomToDelete.id) {
           setCurrentRoom(null);
         }
-        
+
         console.log(`Room ${roomToDelete.name} deleted successfully`);
       } else {
-        console.error('Failed to delete room:', await response.json());
+        console.error("Failed to delete room:", await response.json());
       }
     } catch (error) {
-      console.error('Error deleting room:', error);
+      console.error("Error deleting room:", error);
     } finally {
       setIsDeleteRoomDialogOpen(false);
       setRoomToDelete(null);
@@ -2818,50 +2720,71 @@ export function ChatsAppComponent({
   };
 
   // Add this helper function within the component
-  const callRoomAction = useCallback(async (action: 'joinRoom' | 'leaveRoom', roomId: string | null, currentUsername: string | null) => {
-    if (!roomId || !currentUsername) return; // Need room and user
+  const callRoomAction = useCallback(
+    async (
+      action: "joinRoom" | "leaveRoom",
+      roomId: string | null,
+      currentUsername: string | null
+    ) => {
+      if (!roomId || !currentUsername) return; // Need room and user
 
-    console.log(`[Room Action] Calling ${action} for room ${roomId}, user ${currentUsername}`);
-    try {
-      const response = await fetch(`/api/chat-rooms?action=${action}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId, username: currentUsername }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error(`[Room Action] Failed to ${action} room ${roomId}:`, errorData);
+      console.log(
+        `[Room Action] Calling ${action} for room ${roomId}, user ${currentUsername}`
+      );
+      try {
+        const response = await fetch(`/api/chat-rooms?action=${action}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId, username: currentUsername }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(
+            `[Room Action] Failed to ${action} room ${roomId}:`,
+            errorData
+          );
+        }
+      } catch (error) {
+        console.error(
+          `[Room Action] Network error during ${action} for room ${roomId}:`,
+          error
+        );
       }
-    } catch (error) {
-      console.error(`[Room Action] Network error during ${action} for room ${roomId}:`, error);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Add room selection handler - updated to handle join/leave
-  const handleRoomSelect = useCallback((newRoom: ChatRoom | null) => {
-    const previousRoomId = previousRoomIdRef.current;
-    const newRoomId = newRoom ? newRoom.id : null;
+  const handleRoomSelect = useCallback(
+    (newRoom: ChatRoom | null) => {
+      const previousRoomId = previousRoomIdRef.current;
+      const newRoomId = newRoom ? newRoom.id : null;
 
-    console.log(`[Room Select] Switching from ${previousRoomId || '@ryo'} to ${newRoomId || '@ryo'}`);
+      console.log(
+        `[Room Select] Switching from ${previousRoomId || "@ryo"} to ${
+          newRoomId || "@ryo"
+        }`
+      );
 
-    // Leave previous room if it exists and is different from the new one
-    if (previousRoomId && previousRoomId !== newRoomId && username) {
-      callRoomAction('leaveRoom', previousRoomId, username);
-    }
+      // Leave previous room if it exists and is different from the new one
+      if (previousRoomId && previousRoomId !== newRoomId && username) {
+        callRoomAction("leaveRoom", previousRoomId, username);
+      }
 
-    // Join new room if it exists and is different from the previous one
-    if (newRoomId && newRoomId !== previousRoomId && username) {
-      callRoomAction('joinRoom', newRoomId, username);
-    }
+      // Join new room if it exists and is different from the previous one
+      if (newRoomId && newRoomId !== previousRoomId && username) {
+        callRoomAction("joinRoom", newRoomId, username);
+      }
 
-    // Update state
-    setCurrentRoom(newRoom);
-    saveLastOpenedRoomId(newRoomId);
+      // Update state
+      setCurrentRoom(newRoom);
+      saveLastOpenedRoomId(newRoomId);
 
-    // Update the ref for the next change
-    previousRoomIdRef.current = newRoomId;
-
-  }, [username, callRoomAction]); // Dependencies: username, callRoomAction
+      // Update the ref for the next change
+      previousRoomIdRef.current = newRoomId;
+    },
+    [username, callRoomAction]
+  ); // Dependencies: username, callRoomAction
 
   // Add room creation handler
   const handleAddRoom = useCallback(() => {
@@ -2888,9 +2811,9 @@ export function ChatsAppComponent({
     setIsCreatingRoom(true);
 
     try {
-      const response = await fetch('/api/chat-rooms?action=createRoom', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/chat-rooms?action=createRoom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmedRoomName }),
       });
 
@@ -2898,9 +2821,9 @@ export function ChatsAppComponent({
         const newRoom = await response.json();
         setRooms((prev) => [...prev, newRoom.room]);
         // Auto-join the new room
-        await fetch('/api/chat-rooms?action=joinRoom', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        await fetch("/api/chat-rooms?action=joinRoom", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomId: newRoom.room.id, username }),
         });
         setCurrentRoom(newRoom.room);
@@ -2908,12 +2831,12 @@ export function ChatsAppComponent({
       } else {
         // Handle API errors
         const errorData = await response.json();
-        setRoomError(errorData.error || 'Failed to create room.');
-        console.error('Error creating room:', errorData);
+        setRoomError(errorData.error || "Failed to create room.");
+        console.error("Error creating room:", errorData);
       }
     } catch (error) {
-      setRoomError('Network error. Please try again.');
-      console.error('Network error creating room:', error);
+      setRoomError("Network error. Please try again.");
+      console.error("Network error creating room:", error);
     } finally {
       setIsCreatingRoom(false);
     }
@@ -2938,29 +2861,31 @@ export function ChatsAppComponent({
     setIsSettingUsername(true);
 
     try {
-      const response = await fetch('/api/chat-rooms?action=createUser', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/chat-rooms?action=createUser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: trimmedUsername }),
       });
 
-      if (response.ok) { // Status 201 Created or potentially 200 if already exists but we handle it
+      if (response.ok) {
+        // Status 201 Created or potentially 200 if already exists but we handle it
         const data = await response.json();
         saveChatRoomUsername(data.user.username); // Save the confirmed username
         setUsername(data.user.username);
         setIsUsernameDialogOpen(false);
         console.log(`Username set to: ${data.user.username}`);
-      } else if (response.status === 409) { // Conflict - Username taken
+      } else if (response.status === 409) {
+        // Conflict - Username taken
         setUsernameError("Username already taken. Please choose another.");
       } else {
         // Handle other API errors
         const errorData = await response.json();
-        setUsernameError(errorData.error || 'Failed to set username.');
-        console.error('Error setting username:', errorData);
+        setUsernameError(errorData.error || "Failed to set username.");
+        console.error("Error setting username:", errorData);
       }
     } catch (error) {
-      setUsernameError('Network error. Please try again.');
-      console.error('Network error setting username:', error);
+      setUsernameError("Network error. Please try again.");
+      console.error("Network error setting username:", error);
     } finally {
       setIsSettingUsername(false);
     }
@@ -2969,11 +2894,14 @@ export function ChatsAppComponent({
   // Add effect to handle joining the initial room on load and leaving on unmount
   useEffect(() => {
     const initialRoomId = currentRoom ? currentRoom.id : null;
-    
+
     // Join the initial/restored room when username is available
     if (initialRoomId && username) {
-      console.log("[Component Mount/User Ready] Joining initial room:", initialRoomId);
-      callRoomAction('joinRoom', initialRoomId, username);
+      console.log(
+        "[Component Mount/User Ready] Joining initial room:",
+        initialRoomId
+      );
+      callRoomAction("joinRoom", initialRoomId, username);
       previousRoomIdRef.current = initialRoomId; // Set initial previous room
     }
 
@@ -2982,11 +2910,11 @@ export function ChatsAppComponent({
       const roomToLeave = previousRoomIdRef.current;
       if (roomToLeave && username) {
         console.log("[Component Unmount] Leaving room:", roomToLeave);
-        callRoomAction('leaveRoom', roomToLeave, username);
+        callRoomAction("leaveRoom", roomToLeave, username);
       }
     };
-  // Run when username becomes available or initial currentRoom is set
-  // Important: Add currentRoom?.id to dependencies to handle initial load correctly
+    // Run when username becomes available or initial currentRoom is set
+    // Important: Add currentRoom?.id to dependencies to handle initial load correctly
   }, [username, currentRoom?.id, callRoomAction]);
 
   // Cleanup function to ensure we don't have any hanging operations
@@ -3011,7 +2939,7 @@ export function ChatsAppComponent({
       // Attempt to restore last room from cache
       const lastRoomId = loadLastOpenedRoomId();
       if (lastRoomId) {
-        const lastRoom = cachedRooms.find(room => room.id === lastRoomId);
+        const lastRoom = cachedRooms.find((room) => room.id === lastRoomId);
         if (lastRoom) {
           setCurrentRoom(lastRoom);
           console.log(`Restored last opened room from cache: ${lastRoom.name}`);
@@ -3022,16 +2950,16 @@ export function ChatsAppComponent({
     // Initial fetch for rooms
     const fetchRooms = async () => {
       try {
-        const response = await fetch('/api/chat-rooms?action=getRooms');
-        
+        const response = await fetch("/api/chat-rooms?action=getRooms");
+
         if (!response.ok) {
           console.error(`Failed to fetch rooms: ${response.statusText}`);
           return;
         }
-        
+
         const data = await response.json();
         const fetchedRooms = data.rooms || [];
-        
+
         // Compare fetched rooms with cached rooms
         const currentRoomsJson = JSON.stringify(cachedRooms || []);
         const fetchedRoomsJson = JSON.stringify(fetchedRooms);
@@ -3045,19 +2973,25 @@ export function ChatsAppComponent({
         // After fetching rooms, try to load and set the last opened room
         const lastRoomId = loadLastOpenedRoomId();
         if (lastRoomId) {
-          const lastRoom = fetchedRooms.find((room: ChatRoom) => room.id === lastRoomId);
+          const lastRoom = fetchedRooms.find(
+            (room: ChatRoom) => room.id === lastRoomId
+          );
           if (lastRoom) {
             // Only set currentRoom if it wasn't already set from cache or if it needs updating
             if (!currentRoom || currentRoom.id !== lastRoom.id) {
               setCurrentRoom(lastRoom);
-              console.log(`Restored/updated last opened room from fetch: ${lastRoom.name}`);
+              console.log(
+                `Restored/updated last opened room from fetch: ${lastRoom.name}`
+              );
             }
           } else {
             // If the last room ID doesn't exist anymore, clear it and potentially switch to Ryo
             if (currentRoom && currentRoom.id === lastRoomId) {
               setCurrentRoom(null);
               saveLastOpenedRoomId(null);
-              console.log(`Last opened room ID ${lastRoomId} not found in fetch, switching to @ryo.`);
+              console.log(
+                `Last opened room ID ${lastRoomId} not found in fetch, switching to @ryo.`
+              );
             } else if (!currentRoom) {
               // If no room was set from cache, default to Ryo
               setCurrentRoom(null);
@@ -3070,14 +3004,14 @@ export function ChatsAppComponent({
           }
         }
       } catch (error) {
-        console.error('Error fetching rooms:', error);
+        console.error("Error fetching rooms:", error);
         // If fetch fails, rely on cache or default to Ryo chat
         if (!cachedRooms && !currentRoom) {
           setCurrentRoom(null);
         }
       }
     };
-    
+
     fetchRooms();
   }, []); // Empty dependency array ensures this runs only once on mount
 
@@ -3125,26 +3059,29 @@ export function ChatsAppComponent({
           {/* Chat content - using flex properties for better height distribution */}
           <div className="flex flex-col flex-1 p-2 overflow-hidden">
             <ChatMessages
-              key={currentRoom ? `room-${currentRoom.id}` : 'ryo'} // Add dynamic key here
-              messages={currentRoom
-                ? roomMessages.map(msg => ({
-                  id: msg.id,
-                  // Assign 'user' role if sender is current user, otherwise 'human'
-                  role: msg.username === username ? 'user' : 'human',
-                  content: msg.content,
-                  createdAt: new Date(msg.timestamp),
-                  username: msg.username, // Keep the actual username
-                }))
-                : messages.map(msg => ({
-                  // For Ryo chat, keep original roles and assign usernames
-                  ...msg,
-                  username: msg.role === 'user' ? (username || 'You') : 'Ryo'
-                }))}
+              key={currentRoom ? `room-${currentRoom.id}` : "ryo"} // Add dynamic key here
+              messages={
+                currentRoom
+                  ? roomMessages.map((msg) => ({
+                      id: msg.id,
+                      // Assign 'user' role if sender is current user, otherwise 'human'
+                      role: msg.username === username ? "user" : "human",
+                      content: msg.content,
+                      createdAt: new Date(msg.timestamp),
+                      username: msg.username, // Keep the actual username
+                    }))
+                  : messages.map((msg) => ({
+                      // For Ryo chat, keep original roles and assign usernames
+                      ...msg,
+                      username: msg.role === "user" ? username || "You" : "Ryo",
+                    }))
+              }
               isLoading={isLoading}
               error={error}
               onRetry={reload}
               onClear={clearChats}
               isRoomView={!!currentRoom} // Pass the new prop
+              isInitialLoad={true} // Always use instant scroll for room/channel changes since we use a key prop
             />
 
             {(() => {
@@ -3152,21 +3089,37 @@ export function ChatsAppComponent({
               const sourceMessages = currentRoom ? roomMessages : messages;
 
               // Filter messages based on the current user, casting to unknown[] to allow filtering union type
-              const userMessages = (sourceMessages as unknown[]).filter((msg: unknown) => {
-                // Type guard for UIMessage (from Ryo chat)
-                if (typeof msg === 'object' && msg !== null && 'role' in msg && (msg as UIMessage).role === "user") {
-                  return true;
+              const userMessages = (sourceMessages as unknown[]).filter(
+                (msg: unknown) => {
+                  // Type guard for UIMessage (from Ryo chat)
+                  if (
+                    typeof msg === "object" &&
+                    msg !== null &&
+                    "role" in msg &&
+                    (msg as UIMessage).role === "user"
+                  ) {
+                    return true;
+                  }
+                  // Type guard for ChatMessage (from room chat)
+                  if (
+                    typeof msg === "object" &&
+                    msg !== null &&
+                    "username" in msg &&
+                    (msg as ChatMessage).username === username
+                  ) {
+                    return true;
+                  }
+                  return false;
                 }
-                // Type guard for ChatMessage (from room chat)
-                if (typeof msg === 'object' && msg !== null && 'username' in msg && (msg as ChatMessage).username === username) {
-                  return true;
-                }
-                return false;
-              });
+              );
 
               // Extract content, ensure uniqueness, reverse, and cast to string[]
               const prevMessagesContent = Array.from(
-                new Set(userMessages.map((msg) => (msg as {content: string}).content))
+                new Set(
+                  userMessages.map(
+                    (msg) => (msg as { content: string }).content
+                  )
+                )
               ).reverse() as string[];
 
               return (

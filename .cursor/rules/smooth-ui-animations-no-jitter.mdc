@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+smooth-ui-animations-no-jitter: Prioritize smooth UI animations and avoid layout jitter, especially during dynamic content updates like streaming text. Consider using animation library features like Framer Motion's `layout` prop to achieve this.
