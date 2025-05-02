@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Tone from "tone";
 import { cn } from "@/lib/utils";
@@ -343,9 +343,12 @@ export function SynthAppComponent({
   });
 
   const [pressedNotes, setPressedNotes] = useState<Record<string, boolean>>({});
-  const [activeTouches, setActiveTouches] = useState<Record<string, string>>(
-    {}
-  );
+  const [activeTouches, setActiveTouches] = useState<Record<string, string>>({});
+  // Keep a ref in sync with `activeTouches` so external event listeners always have current data
+  const activeTouchesRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    activeTouchesRef.current = activeTouches;
+  }, [activeTouches]);
   // Use UI sound for interface feedback
   const { play } = useSound("/sounds/click.mp3");
 
@@ -653,23 +656,23 @@ export function SynthAppComponent({
   };
 
   // Note press/release handlers
-  const pressNote = (note: string) => {
+  const pressNote = useCallback((note: string) => {
     if (!synthRef.current) return;
 
     const shiftedNote = shiftNoteByOctave(note, octaveOffset);
     const now = Tone.context.currentTime; // schedule without extra latency
     synthRef.current.triggerAttack(shiftedNote, now);
     setPressedNotes((prev) => ({ ...prev, [note]: true }));
-  };
+  }, [octaveOffset]);
 
-  const releaseNote = (note: string) => {
+  const releaseNote = useCallback((note: string) => {
     if (!synthRef.current) return;
 
     const shiftedNote = shiftNoteByOctave(note, octaveOffset);
     const now = Tone.context.currentTime;
     synthRef.current.triggerRelease(shiftedNote, now);
     setPressedNotes((prev) => ({ ...prev, [note]: false }));
-  };
+  }, [octaveOffset]);
 
   // Status message display
   const showStatus = (message: string) => {
@@ -885,7 +888,7 @@ export function SynthAppComponent({
     const handleVisibilityChange = () => {
       if (document.hidden) {
         // Release all active notes when the app goes to background
-        Object.entries(activeTouches).forEach(([, note]) => {
+        Object.entries(activeTouchesRef.current).forEach(([, note]) => {
           releaseNote(note);
         });
         setActiveTouches({});
@@ -896,7 +899,7 @@ export function SynthAppComponent({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [activeTouches, releaseNote]);
+  }, [activeTouchesRef, releaseNote]);
 
   // Ensure Tone.js context is in low-latency mode once when the component mounts
   useEffect(() => {
@@ -913,6 +916,44 @@ export function SynthAppComponent({
       // Ignore if Tone isn't available – worst case we keep the default value.
     }
   }, []);
+
+  // Ensure all touches are released even if they end outside the keyboard area
+  useEffect(() => {
+    if (!isWindowOpen) return;
+
+    const handleGlobalTouchEnd = (e: TouchEvent) => {
+      const endedTouches = Array.from(e.changedTouches);
+
+      setActiveTouches((prev) => {
+        let newTouches = { ...prev };
+
+        endedTouches.forEach((touch) => {
+          const note = newTouches[touch.identifier];
+          if (note) {
+            releaseNote(note);
+            delete newTouches[touch.identifier];
+          }
+        });
+
+        // If there are no remaining touches on the screen, ensure all notes are released
+        if (e.touches.length === 0) {
+          Object.values(newTouches).forEach((note) => releaseNote(note));
+          newTouches = {};
+        }
+
+        return newTouches;
+      });
+    };
+
+    // Use non-passive listener so we can call preventDefault if desired (matching component handlers)
+    document.addEventListener("touchend", handleGlobalTouchEnd, { passive: false });
+    document.addEventListener("touchcancel", handleGlobalTouchEnd, { passive: false });
+
+    return () => {
+      document.removeEventListener("touchend", handleGlobalTouchEnd);
+      document.removeEventListener("touchcancel", handleGlobalTouchEnd);
+    };
+  }, [isWindowOpen, releaseNote]);
 
   return (
     <>
