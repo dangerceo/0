@@ -125,16 +125,44 @@ export function PhotoBoothComponent({
     };
   }, [isWindowOpen, isForeground, stream]);
 
+  // Fully stop any active media streams and clear timers
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
+    // Aggregate all known streams so we can safely stop them
+    const streams: MediaStream[] = [];
 
+    if (stream) streams.push(stream);
+    // `mainStream` might be the same as `stream`, but if it is different we
+    // still want to make sure we stop its tracks as well.
+    if (mainStream && mainStream !== stream) streams.push(mainStream);
+
+    streams.forEach((s) => {
+      s.getTracks().forEach((track) => track.stop());
+    });
+
+    // Clear local references so React knows the streams are gone
+    setStream(null);
+    setMainStream(null);
+
+    // Clear any running interval that might be taking additional photos
     if (multiPhotoTimer) {
       clearInterval(multiPhotoTimer);
+      setMultiPhotoTimer(null);
     }
   };
+
+  // Ensure that we always stop the camera when the Photo Booth window is
+  // closed.  Returning `null` from the component hides the UI but does **not**
+  // unmount the component itself, so we need a dedicated effect that reacts
+  // to `isWindowOpen` changes and performs cleanup.
+  useEffect(() => {
+    if (!isWindowOpen) {
+      stopCamera();
+    }
+
+    // It's safe to omit a cleanup function here because `stopCamera` already
+    // handles stopping tracks and clearing timers – calling it a second time
+    // would simply be a no-op.
+  }, [isWindowOpen]);
 
   // Detect iOS devices which need special handling
   const isIOS =
