@@ -332,6 +332,23 @@ export function VideosAppComponent({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const statusTimeoutRef = useRef<NodeJS.Timeout>();
 
+  // --- Prevent unwanted autoplay on Mobile Safari ---
+  const hasAutoplayCheckedRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoplayCheckedRef.current) return;
+
+    const ua = navigator.userAgent;
+    const isIOS = /iP(hone|od|ad)/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua);
+
+    if (isPlaying && (isIOS || isSafari)) {
+      setIsPlaying(false);
+    }
+
+    hasAutoplayCheckedRef.current = true;
+    // dependency array intentionally empty to run once
+  }, [isPlaying, setIsPlaying]);
+
   // Function to show status message
   const showStatus = (message: string) => {
     setStatusMessage(message);

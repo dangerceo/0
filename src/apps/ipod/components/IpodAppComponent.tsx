@@ -88,6 +88,27 @@ export function IpodAppComponent({
 
   const prevIsForeground = useRef(isForeground);
 
+  // --- Prevent unwanted autoplay on Mobile Safari ---
+  const hasAutoplayCheckedRef = useRef(false);
+  useEffect(() => {
+    // Run this logic only once on mount / re-hydration
+    if (hasAutoplayCheckedRef.current) return;
+
+    const ua = navigator.userAgent;
+    const isIOS = /iP(hone|od|ad)/.test(ua);
+    // Safari on iOS (and iPadOS) blocks autoplay with sound until user interaction
+    // The classic desktop Safari UA string also contains "Safari" but not "Chrome" or "CriOS".
+    const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua);
+
+    if (isPlaying && (isIOS || isSafari)) {
+      // If persisted state says "playing", reset it so the user has to press play manually.
+      setIsPlaying(false);
+    }
+
+    hasAutoplayCheckedRef.current = true;
+    // We intentionally leave the dependency array empty so this runs once.
+  }, [isPlaying, setIsPlaying]);
+
   const showStatus = useCallback((message: string) => {
     setStatusMessage(message);
     if (statusTimeoutRef.current) {
