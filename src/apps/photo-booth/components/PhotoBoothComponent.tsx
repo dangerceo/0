@@ -29,7 +29,7 @@ const effects: Effect[] = [
   { name: "Rainbow", filter: "hue-rotate(180deg) saturate(200%)" },
   { name: "Vibrant", filter: "saturate(200%) contrast(150%)" },
   { name: "Cold Blue", filter: "hue-rotate(240deg) saturate(150%)" },
-  { name: "Warm Orange", filter: "sepia(70%) hue-rotate(20deg)" },
+  { name: "B&W", filter: "grayscale(100%)" },
   { name: "Normal", filter: "none" },
   // Special distortion effects using our custom shader effects
   { name: "Bulge", filter: "bulge(2.0)" },
