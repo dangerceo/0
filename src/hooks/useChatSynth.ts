@@ -144,6 +144,9 @@ export const SYNTH_PRESETS: Record<string, SynthPreset> = {
 const notes = ["C4", "D4", "F4", "G4", "A4", "C5", "D5"];
 // Increase the minimum interval between notes slightly to reduce the chance of audio buffer congestion
 const minTimeBetweenNotes = 0.1;
+// Schedule events slightly ahead of time so that audio runs even if the main
+// thread is busy at that exact millisecond.
+const SCHEDULE_AHEAD = 0.05; // 50 ms
 
 // Allow more simultaneous voices so that quick successive notes don't cut each other off (helps prevent choppiness)
 const VOICE_COUNT = 20;
@@ -169,6 +172,9 @@ export function useChatSynth() {
   const initializeTone = useCallback(async () => {
     if (!isInitialized) {
       await Tone.start();
+      // Give Tone a larger scheduling window and keep latency low/inter-active
+      Tone.context.lookAhead = 0.1;
+      Tone.context.latencyHint = "interactive";
       setIsInitialized(true);
     }
 
@@ -208,12 +214,13 @@ export function useChatSynth() {
     }
 
     const now = Tone.now();
-    if (now - lastNoteTimeRef.current >= minTimeBetweenNotes) {
+    const noteTime = now + SCHEDULE_AHEAD;
+    if (noteTime - lastNoteTimeRef.current >= minTimeBetweenNotes) {
       const noteToPlay = notes[Math.floor(Math.random() * notes.length)];
       try {
-        synthRef.current.triggerAttackRelease(noteToPlay, "32n", now);
+        synthRef.current.triggerAttackRelease(noteToPlay, "32n", noteTime);
         vibrate();
-        lastNoteTimeRef.current = now;
+        lastNoteTimeRef.current = noteTime;
       } catch (error) {
         console.debug("Skipping note due to timing", error);
       }

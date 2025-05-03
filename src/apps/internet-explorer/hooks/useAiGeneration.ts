@@ -1,5 +1,5 @@
 import { useChat, type Message } from "ai/react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useInternetExplorerStore, DEFAULT_TIMELINE, LanguageOption, LocationOption } from "@/stores/useInternetExplorerStore";
 import { useAppStore } from "@/stores/useAppStore";
 
@@ -21,6 +21,33 @@ interface UseAiGenerationReturn {
   isAiLoading: boolean;
   isFetchingWebsiteContent: boolean;
   stopGeneration: () => void;
+}
+
+// ----------------------
+// rAF-based throttle hook
+// ----------------------
+/**
+ * Returns a stable callback that forwards the latest value to the provided
+ * handler at most once per animation frame. Useful to throttle state updates
+ * triggered by chat streaming so that React re-renders at the display's frame
+ * rate instead of for every chunk.
+ */
+function useRafThrottle<T>(handler: (v: T) => void) {
+  const frame = useRef<number | null>(null);
+  const lastValue = useRef<T | null>(null);
+
+  // We need the *same* throttled function instance for the component lifetime
+  // so wrap it in useCallback with empty deps.
+  return useCallback((value: T) => {
+    lastValue.current = value;
+    if (frame.current !== null) return;
+
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      // handler might change between renders – capture the latest via ref
+      handler(lastValue.current as T);
+    });
+  }, [handler]);
 }
 
 export function useAiGeneration({ onLoadingChange, customTimeline = {} }: UseAiGenerationProps = {}): UseAiGenerationReturn {
@@ -358,9 +385,12 @@ IMPORTANT NAVIGATION CONTEXT:
     }
   };
 
+  // Throttled setter to avoid excessive re-renders while we stream chunks
+  const throttledSetHtml = useRafThrottle(setAiGeneratedHtml);
+
   // Effect to watch for AI responses and update the *streaming* UI preview
   useEffect(() => {
-    // Only update the preview, final state is handled by onFinish
+    // Only update the preview; final state is handled by onFinish
     if (aiMessages.length > 1) {
       const lastMessage = aiMessages[aiMessages.length - 1];
       if (lastMessage.role === "assistant") {
@@ -368,11 +398,12 @@ IMPORTANT NAVIGATION CONTEXT:
           .replace(/^\s*```(?:html)?\s*\n?|\n?\s*```\s*$/g, "")
           .trim();
         // Remove title comment for preview
-        const cleanHtmlContent = htmlContent.replace(/^<!--\s*TITLE:.*?-->\s*\n?/,'');
-        // Update local state for streaming display only
-        setAiGeneratedHtml(cleanHtmlContent);
+        const cleanHtmlContent = htmlContent.replace(/^<!--\s*TITLE:.*?-->\s*\n?/, "");
+        // Throttled state update for streaming display only
+        throttledSetHtml(cleanHtmlContent);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiMessages]); // Only depends on messages for streaming updates
 
   // Effect to notify parent of loading state changes
