@@ -9,9 +9,10 @@ import { InputDialog } from "@/components/dialogs/InputDialog";
 import { helpItems, appMetadata } from "..";
 import { useChatRoom } from "../hooks/useChatRoom";
 import { useAiChat } from "../hooks/useAiChat";
+import React from "react";
 import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
-import { ChatRoomSidebar } from "./ChatRoomSidebar"; // Import ChatRoomSidebar
+import { ChatRoomSidebar } from "./ChatRoomSidebar";
 import { useChatsStore } from "@/stores/useChatsStore";
 import { type Message as UIMessage } from "ai/react";
 import { type ChatMessage as AppChatMessage, type ChatRoom } from "@/types/chat";
@@ -23,6 +24,11 @@ interface DisplayMessage extends Omit<UIMessage, 'role'> {
   role: UIMessage['role'] | 'human';
   createdAt?: Date; // Ensure createdAt is optional Date
 }
+
+// Memoized versions to prevent unnecessary re-renders while streaming
+const MemoChatMessages = React.memo(ChatMessages);
+const MemoChatInput = React.memo(ChatInput);
+const MemoChatRoomSidebar = React.memo(ChatRoomSidebar);
 
 export function ChatsAppComponent({
   isWindowOpen,
@@ -173,7 +179,7 @@ export function ChatsAppComponent({
         isShaking={isShaking}
       >
         <div className="flex flex-col md:flex-row h-full bg-[#c0c0c0] w-full">
-          <ChatRoomSidebar
+          <MemoChatRoomSidebar
             rooms={rooms}
             currentRoom={currentRoom ?? null}
             onRoomSelect={(room) => handleRoomSelect(room ? room.id : null)}
@@ -185,7 +191,7 @@ export function ChatsAppComponent({
           <div className="flex flex-col flex-1 p-2 overflow-hidden">
             {/* Chat Messages Area - takes up remaining space */}
             <div className="flex-1 overflow-hidden">
-              <ChatMessages
+              <MemoChatMessages
                 key={currentRoomId || 'ryo'} // Re-render on room change
                 messages={currentMessagesToDisplay} // Remove 'as any'
                 isLoading={isLoading && !currentRoomId} // Only show AI loading state
@@ -212,7 +218,7 @@ export function ChatsAppComponent({
                   const prevMessagesContent = Array.from(new Set(userMessages.map((msg) => msg.content))).reverse() as string[];
 
                   return (
-                    <ChatInput
+                    <MemoChatInput
                       input={input}
                       isLoading={isLoading}
                       isForeground={isForeground}
