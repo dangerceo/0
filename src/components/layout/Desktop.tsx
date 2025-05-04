@@ -151,6 +151,31 @@ export function Desktop({
     };
   }, [isVideoWallpaper]);
 
+  // Ensure video reloads and plays when wallpaper source changes
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isVideoWallpaper) {
+      // Force reload to pick up the new src when switching wallpapers
+      try {
+        video.load();
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+          playPromise.catch((err) => {
+            console.warn("[Desktop] Auto-play failed:", err);
+          });
+        }
+      } catch (err) {
+        console.warn("[Desktop] Error while trying to play wallpaper video:", err);
+      }
+    } else {
+      // Pause and reset if switching to an image wallpaper
+      video.pause();
+      video.currentTime = 0;
+    }
+  }, [displaySource, isVideoWallpaper]);
+
   const getWallpaperStyles = (path: string): DesktopStyles => {
     if (!path) return {};
 
