@@ -4,7 +4,7 @@ import { AppId } from "@/config/appRegistry";
 import { useState, useEffect, useRef } from "react";
 import { FileIcon } from "@/apps/finder/components/FileIcon";
 import { getAppIconPath } from "@/config/appRegistry";
-import { useWallpaper } from "@/hooks/useWallpaper";
+import { useAppStore } from "@/stores/useAppStore";
 
 interface DesktopStyles {
   backgroundImage?: string;
@@ -20,66 +20,19 @@ interface DesktopProps {
   toggleApp: (appId: AppId, initialData?: any) => void;
   onClick?: () => void;
   desktopStyles?: DesktopStyles;
-  wallpaperPath: string;
 }
 
 export function Desktop({
   apps,
+  appStates: _appStates,
   toggleApp,
   onClick,
   desktopStyles,
-  wallpaperPath,
 }: DesktopProps) {
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
-  const {
-    currentWallpaper,
-    wallpaperSource,
-    isVideoWallpaper,
-    INDEXEDDB_PREFIX,
-    getWallpaperData,
-  } = useWallpaper();
-  const [displaySource, setDisplaySource] = useState<string>("");
+  const wallpaperSource = useAppStore((s) => s.wallpaperSource);
+  const isVideoWallpaper = useAppStore((s) => s.isVideoWallpaper);
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Keep displaySource in sync with wallpaperSource and currentWallpaper
-  useEffect(() => {
-    setDisplaySource(wallpaperSource);
-  }, [wallpaperSource, currentWallpaper]);
-
-  // Initialize wallpaperPath from props
-  useEffect(() => {
-    if (wallpaperPath && wallpaperPath !== currentWallpaper) {
-      setDisplaySource(wallpaperPath);
-    }
-  }, [wallpaperPath, currentWallpaper]);
-
-  // Listen for wallpaper changes
-  useEffect(() => {
-    const handleWallpaperChange = async (e: CustomEvent<string>) => {
-      const newWallpaper = e.detail;
-
-      if (newWallpaper.startsWith(INDEXEDDB_PREFIX)) {
-        const data = await getWallpaperData(newWallpaper);
-        if (data) {
-          setDisplaySource(data);
-        } else {
-          setDisplaySource(newWallpaper);
-        }
-      } else {
-        setDisplaySource(newWallpaper);
-      }
-    };
-
-    window.addEventListener(
-      "wallpaperChange",
-      handleWallpaperChange as unknown as EventListener
-    );
-    return () =>
-      window.removeEventListener(
-        "wallpaperChange",
-        handleWallpaperChange as unknown as EventListener
-      );
-  }, [INDEXEDDB_PREFIX, getWallpaperData]);
 
   // Add visibility change and focus handlers to resume video playback
   useEffect(() => {
@@ -174,7 +127,7 @@ export function Desktop({
       video.pause();
       video.currentTime = 0;
     }
-  }, [displaySource, isVideoWallpaper]);
+  }, [wallpaperSource, isVideoWallpaper]);
 
   const getWallpaperStyles = (path: string): DesktopStyles => {
     if (!path) return {};
@@ -198,7 +151,7 @@ export function Desktop({
   };
 
   const finalStyles = {
-    ...getWallpaperStyles(displaySource),
+    ...getWallpaperStyles(wallpaperSource),
     ...desktopStyles,
   };
 
@@ -229,7 +182,7 @@ export function Desktop({
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover z-[-10]"
-        src={displaySource}
+        src={wallpaperSource}
         autoPlay
         loop
         muted

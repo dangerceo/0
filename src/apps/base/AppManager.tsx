@@ -4,7 +4,6 @@ import { AppContext } from "@/contexts/AppContext";
 import { MenuBar } from "@/components/layout/MenuBar";
 import { Desktop } from "@/components/layout/Desktop";
 import { AppId, getAppComponent, appRegistry } from "@/config/appRegistry";
-import { useWallpaper } from "@/hooks/useWallpaper";
 import { useAppStore } from "@/stores/useAppStore";
 import { extractCodeFromPath } from "@/utils/sharedUrl";
 import { toast } from "sonner";
@@ -26,7 +25,6 @@ export function AppManager({ apps }: AppManagerProps) {
   const navigateToPreviousApp = useAppStore(
     (state) => state.navigateToPreviousApp
   );
-  const { currentWallpaper } = useWallpaper();
   const [isInitialMount, setIsInitialMount] = useState(true);
 
   const getZIndexForApp = (appId: AppId) => {
@@ -201,7 +199,6 @@ export function AppManager({ apps }: AppManagerProps) {
         apps={apps}
         toggleApp={toggleApp}
         appStates={{ windowOrder, apps: appStates }}
-        wallpaperPath={currentWallpaper}
       />
     </AppContext.Provider>
   );
