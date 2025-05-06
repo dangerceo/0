@@ -212,6 +212,20 @@ export function Webcam({
   };
 
   const stopCamera = () => {
+    // Always clear the video element so that the browser releases the camera
+    if (videoRef.current) {
+      videoRef.current.pause();
+      // Detach the stream to allow the browser to release the camera
+      (videoRef.current as HTMLVideoElement).srcObject = null;
+    }
+
+    // Cancel any preview render loop that might still be running
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
+    // Stop tracks only when we own the stream (i.e. not in preview mode)
     if (stream && !isPreview) {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
