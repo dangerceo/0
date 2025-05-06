@@ -185,8 +185,14 @@ export function PhotoBoothComponent({
       s.getTracks().forEach((track) => track.stop());
     });
 
+    // Pause and detach any stray video element that may still reference a stream
+    if (videoRef.current) {
+      videoRef.current.pause();
+      (videoRef.current as HTMLVideoElement).srcObject = null;
+    }
+
     // Clear local references so React knows the streams are gone
-      setStream(null);
+    setStream(null);
     setMainStream(null);
 
     // Clear any running interval that might be taking additional photos
