@@ -1,4 +1,4 @@
-# ryOS — A web-based OS experience, made with Cursor
+# 0 — A web-based OS concept
 
 A modern web-based desktop environment inspired by classic macOS, built with a cutting-edge web stack and AI. Features multiple built-in applications and a familiar desktop interface. Works on all devices—including mobile, tablet, and desktop.
 
@@ -14,9 +14,8 @@ A modern web-based desktop environment inspired by classic macOS, built with a c
 - Customizable wallpapers (photos, patterns, or videos)
 - System-wide sampled and synthesizer sound effects
 - System-wide UI, Chats, and Terminal sounds
-- System-wide Ryo AI, with tool calls and context of running applications
+- System-wide AI, with tool calls and context of running applications
 - Virtual file system with local storage persistence and one-click Backup / Restore
-- Optional CRT, Galaxy & Aurora shader effects
 
 ### Built-in Applications
 
