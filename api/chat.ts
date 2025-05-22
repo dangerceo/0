@@ -68,8 +68,11 @@ interface SystemState {
 
 // Allowed origins for API requests
 const ALLOWED_ORIGINS = new Set([
-  'https://os.ryo.lu',
-  'http://localhost:3000'
+  'https://os.ryo.lu', // Replace with your Vercel deployment URL if keeping
+  'http://localhost:3000',
+  // Add your Cloudflare Pages domain(s) here after deployment
+  // e.g., 'https://yourproject.pages.dev',
+  // 'https://yourcustomdomain.com',
 ]);
 
 // Function to validate request origin
