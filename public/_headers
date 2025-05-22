@@ -1,0 +1,32 @@
+# Static Assets - Long Cache
+/fonts/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=31536000, immutable
+/wallpapers/*
+  Cache-Control: public, max-age=31536000, immutable
+/icons/*
+  Cache-Control: public, max-age=31536000, immutable
+/sounds/*
+  Cache-Control: public, max-age=31536000, immutable
+/patterns/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Specific root files - Long Cache
+/apple-touch-icon.png
+  Cache-Control: public, max-age=31536000, immutable
+/favicon.ico
+  Cache-Control: public, max-age=31536000, immutable
+/vite.svg
+  Cache-Control: public, max-age=31536000, immutable
+
+# Specific root JSON files - Shorter Cache
+/manifest.json
+  Cache-Control: public, max-age=3600
+/all-sounds.json
+  Cache-Control: public, max-age=3600
+/soundboards.json
+  Cache-Control: public, max-age=3600
+
+# API CORS
+# Note: CORS for /api/* routes is primarily handled within the API function code (e.g., api/chat.ts).
+# The `ALLOWED_ORIGINS` set in those functions will need to be updated with the Cloudflare deployment domain.

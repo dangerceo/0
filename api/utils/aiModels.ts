@@ -20,6 +20,8 @@ export const getModelInstance = (model: SupportedModel): LanguageModelV1 => {
       return openai("gpt-4.1");
     case "gpt-4.1-mini":
       return openai("gpt-4.1-mini");
+    case "gemini-2.5-flash":
+      return google("gemini-2.5-flash");
     case "gemini-2.5-pro-preview-05-06":
       return google("gemini-2.5-pro-preview-05-06");
     case "claude-3.7":
